@@ -22,7 +22,8 @@ def get_logo_b64(path):
         return None
 
 logo_b64 = get_logo_b64("logo_blanco.png")
-logo_img = f'<img src="data:image/png;base64,{logo_b64}" style="height:38px;object-fit:contain;" />' if logo_b64 else '<span style="font-size:20px;font-weight:700;color:white;letter-spacing:0.05em;">DAKI CAPITAL</span>'
+logo_img         = f'<img src="data:image/png;base64,{logo_b64}" style="height:56px;object-fit:contain;" />' if logo_b64 else '<span style="font-size:22px;font-weight:700;color:white;letter-spacing:0.05em;">DAKI CAPITAL</span>'
+logo_img_sidebar = f'<img src="data:image/png;base64,{logo_b64}" style="height:46px;object-fit:contain;max-width:180px;" />' if logo_b64 else '<span style="font-size:18px;font-weight:700;color:white;">DAKI CAPITAL</span>'
 
 # ── Brand CSS ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
@@ -196,54 +197,82 @@ def make_scatter(df, macro_mid, asset_mid):
     )
     return fig
 
-def make_blackrock_heatmap(ts_df, metric):
-    # BlackRock style: each column = quarter, rows sorted best→worst within each quarter
+def make_blackrock_heatmap(ts_df, metric, top_n=20):
+    """
+    BlackRock-style ranked heat map.
+    Columns = quarters. Each column shows the top_n cities ranked best→worst.
+    Cells are large enough to read clearly.
+    """
     quarters = QUARTERS
-    # Get all unique cities
-    cities = ts_df["msa"].unique().tolist()
 
-    # Build a dict: quarter → sorted list of (city, value)
+    # For each quarter, rank cities by metric descending, keep top_n
     col_data = {}
     for q in quarters:
-        qdf = ts_df[ts_df["quarter"] == q][["msa","short",metric]].copy()
-        qdf = qdf.sort_values(metric, ascending=False).reset_index(drop=True)
+        qdf = ts_df[ts_df["quarter"] == q][["msa", "short", metric]].copy()
+        qdf = qdf.sort_values(metric, ascending=False).head(top_n).reset_index(drop=True)
         col_data[q] = qdf
 
-    n_rows = len(cities)
-    # Build z matrix: rows = rank positions, cols = quarters
-    z = []
-    text = []
-    for rank in range(n_rows):
-        z_row, t_row = [], []
+    # Build matrix rows = rank 1..top_n, cols = quarters
+    z, text, hover = [], [], []
+    for rank in range(top_n):
+        z_row, t_row, h_row = [], [], []
         for q in quarters:
             qdf = col_data[q]
             if rank < len(qdf):
-                z_row.append(round(qdf.iloc[rank][metric], 2))
-                t_row.append(f"{qdf.iloc[rank]['short']}<br>{qdf.iloc[rank][metric]:.2f}")
+                val = round(qdf.iloc[rank][metric], 2)
+                short = qdf.iloc[rank]["short"]
+                msa   = qdf.iloc[rank]["msa"]
+                z_row.append(val)
+                t_row.append(f"<b>{short}</b><br>{val:.2f}")
+                h_row.append(f"<b>{msa}</b><br>{q} — Rank #{rank+1}<br>Score: {val:.2f}")
             else:
                 z_row.append(None)
                 t_row.append("")
+                h_row.append("")
         z.append(z_row)
         text.append(t_row)
+        hover.append(h_row)
 
+    cell_h = 48  # px per row — tall enough to read
     fig = go.Figure(data=go.Heatmap(
-        z=z, x=quarters,
-        y=[f"#{i+1}" for i in range(n_rows)],
-        colorscale=[[0,"#E8F5F1"],[0.35,"#5DCAA5"],[0.65,"#0F6E56"],[1,"#04342C"]],
-        text=text, texttemplate="%{text}",
-        textfont=dict(size=9, color="white"),
-        hoverongaps=False,
-        hovertemplate="Rank %{y} — %{x}<br>%{text}<extra></extra>",
+        z=z,
+        x=[f"<b>{q}</b>" for q in quarters],
+        y=[f"#{i+1}" for i in range(top_n)],
+        colorscale=[
+            [0.0,  "#C8EDE4"],
+            [0.3,  "#5DCAA5"],
+            [0.6,  "#0F6E56"],
+            [1.0,  "#04342C"],
+        ],
+        text=text,
+        texttemplate="%{text}",
+        textfont=dict(size=11, color="white"),
+        customdata=hover,
+        hovertemplate="%{customdata}<extra></extra>",
         showscale=True,
-        colorbar=dict(thickness=10, len=0.8, title=dict(text="Score", side="right")),
+        colorbar=dict(
+            thickness=14, len=0.85,
+            title=dict(text="Score", side="right"),
+            tickfont=dict(size=11),
+        ),
         zmin=0, zmax=5,
+        xgap=3, ygap=3,
     ))
     fig.update_layout(
-        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-        margin=dict(l=40,r=60,t=20,b=30),
-        height=max(500, n_rows * 16 + 80),
-        xaxis=dict(side="top", tickfont=dict(size=11)),
-        yaxis=dict(tickfont=dict(size=9), autorange="reversed"),
+        plot_bgcolor="#f7faf9",
+        paper_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=50, r=80, t=40, b=20),
+        height=top_n * cell_h + 80,
+        xaxis=dict(
+            side="top",
+            tickfont=dict(size=13, color="#0D4F45"),
+            showgrid=False, zeroline=False,
+        ),
+        yaxis=dict(
+            tickfont=dict(size=12, color="#555"),
+            autorange="reversed",
+            showgrid=False, zeroline=False,
+        ),
         font=dict(family="Inter, sans-serif"),
     )
     return fig
@@ -281,8 +310,8 @@ def render_sidebar(all_msas):
     with st.sidebar:
         st.markdown(f"""
         <div style="padding:8px 0 20px;text-align:center;">
-            {logo_img}
-            <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:6px;letter-spacing:0.08em;">MSA INTELLIGENCE</div>
+            {logo_img_sidebar}
+            <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:8px;letter-spacing:0.08em;">MSA INTELLIGENCE</div>
         </div>
         """, unsafe_allow_html=True)
         st.markdown("---")
@@ -425,12 +454,19 @@ def main():
         ts_df = get_timeseries_df()
         ts_filtered = ts_df[ts_df["msa"].isin(filtered["msa"].tolist())]
 
-        hm_metric = st.radio("Score to display", ["Macro Score","Asset Score","Combined Score"],
-                             horizontal=True, label_visibility="collapsed")
-        metric_map = {"Macro Score":"macro_score","Asset Score":"asset_score","Combined Score":"combined"}
+        hm_col1, hm_col2 = st.columns([3, 1])
+        with hm_col1:
+            hm_metric = st.radio("Score to display",
+                                 ["Macro Score", "Asset Score", "Combined Score"],
+                                 horizontal=True, label_visibility="collapsed")
+        with hm_col2:
+            top_n = st.selectbox("Show top", [10, 15, 20, 30, len(filtered)],
+                                 index=1, format_func=lambda x: f"Top {x}" if x != len(filtered) else "All")
+
+        metric_map = {"Macro Score": "macro_score", "Asset Score": "asset_score", "Combined Score": "combined"}
         metric_key = metric_map[hm_metric]
 
-        fig_hm = make_blackrock_heatmap(ts_filtered, metric_key)
+        fig_hm = make_blackrock_heatmap(ts_filtered, metric_key, top_n=int(top_n))
         st.plotly_chart(fig_hm, use_container_width=True)
 
     # ── Tab 3: Trajectories ───────────────────────────────────────────────────
