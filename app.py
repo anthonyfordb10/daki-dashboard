@@ -305,6 +305,247 @@ def make_trajectory(ts_df, selected_cities):
     )
     return fig
 
+# ── MSA → state mapping for choropleth ───────────────────────────────────────
+MSA_STATE = {
+    "Atlanta": "GA", "Austin": "TX", "Baltimore": "MD", "Boston": "MA",
+    "Charlotte": "NC", "Chicago": "IL", "Cincinnati": "OH", "Cleveland": "OH",
+    "Columbus": "OH", "D.C. Metro": "VA", "Dallas / Fort Worth": "TX",
+    "Denver": "CO", "Detroit": "MI", "Fort Lauderdale": "FL", "Houston": "TX",
+    "Indianapolis": "IN", "Inland Empire": "CA", "Jacksonville": "FL",
+    "Kansas City": "MO", "Las Vegas": "NV", "Los Angeles": "CA",
+    "Louisville": "KY", "Memphis": "TN", "Miami": "FL", "Minneapolis": "MN",
+    "Nashville": "TN", "New Jersey (N)": "NJ", "New York": "NY",
+    "Orange County": "CA", "Orlando": "FL", "Palm Beach": "FL",
+    "Philadelphia": "PA", "Phoenix": "AZ", "Pittsburgh": "PA",
+    "Portland": "OR", "Richmond": "VA", "Sacramento": "CA",
+    "Salt Lake City": "UT", "San Antonio": "TX", "San Diego": "CA",
+    "San Francisco": "CA", "Seattle": "WA", "St. Louis": "MO", "Tampa": "FL",
+}
+
+# Lat/lon for each MSA bubble
+MSA_COORDS = {
+    "Atlanta": (33.749, -84.388), "Austin": (30.267, -97.743),
+    "Baltimore": (39.290, -76.612), "Boston": (42.360, -71.059),
+    "Charlotte": (35.227, -80.843), "Chicago": (41.878, -87.630),
+    "Cincinnati": (39.103, -84.512), "Cleveland": (41.499, -81.695),
+    "Columbus": (39.961, -82.999), "D.C. Metro": (38.907, -77.037),
+    "Dallas / Fort Worth": (32.776, -96.797), "Denver": (39.739, -104.984),
+    "Detroit": (42.331, -83.046), "Fort Lauderdale": (26.122, -80.143),
+    "Houston": (29.760, -95.370), "Indianapolis": (39.768, -86.158),
+    "Inland Empire": (34.055, -117.182), "Jacksonville": (30.332, -81.656),
+    "Kansas City": (39.099, -94.578), "Las Vegas": (36.175, -115.137),
+    "Los Angeles": (34.052, -118.244), "Louisville": (38.252, -85.758),
+    "Memphis": (35.149, -90.049), "Miami": (25.775, -80.208),
+    "Minneapolis": (44.977, -93.265), "Nashville": (36.162, -86.781),
+    "New Jersey (N)": (40.714, -74.006), "New York": (40.713, -74.006),
+    "Orange County": (33.684, -117.794), "Orlando": (28.538, -81.379),
+    "Palm Beach": (26.715, -80.053), "Philadelphia": (39.952, -75.164),
+    "Phoenix": (33.448, -112.074), "Pittsburgh": (40.440, -79.996),
+    "Portland": (45.523, -122.676), "Richmond": (37.541, -77.434),
+    "Sacramento": (38.582, -121.494), "Salt Lake City": (40.760, -111.891),
+    "San Antonio": (29.425, -98.494), "San Diego": (32.715, -117.157),
+    "San Francisco": (37.774, -122.419), "Seattle": (47.606, -122.332),
+    "St. Louis": (38.627, -90.198), "Tampa": (27.950, -82.457),
+}
+
+def make_us_map(df, metric="combined"):
+    lats, lons, texts, colors, sizes, hovers = [], [], [], [], [], []
+    for _, row in df.iterrows():
+        msa = row["msa"]
+        if msa not in MSA_COORDS:
+            continue
+        lat, lon = MSA_COORDS[msa]
+        val = (row["macro_score"] + row["asset_score"]) / 2 if metric == "combined" else row[metric]
+        tier = row["tier"]
+        color = TIER_COLORS[tier]
+        lats.append(lat)
+        lons.append(lon)
+        colors.append(color)
+        sizes.append(10 + val * 5)
+        texts.append(row["short"])
+        hovers.append(
+            f"<b>{msa}</b><br>"
+            f"Macro: {row['macro_score']:.2f}  |  Asset: {row['asset_score']:.2f}<br>"
+            f"Combined: {val:.2f}<br>Tier: {tier}"
+        )
+
+    fig = go.Figure()
+
+    # One trace per tier for legend
+    for tier, color in TIER_COLORS.items():
+        tier_df = df[df["tier"] == tier]
+        t_lats, t_lons, t_texts, t_sizes, t_hovers = [], [], [], [], []
+        for _, row in tier_df.iterrows():
+            msa = row["msa"]
+            if msa not in MSA_COORDS:
+                continue
+            lat, lon = MSA_COORDS[msa]
+            val = (row["macro_score"] + row["asset_score"]) / 2
+            t_lats.append(lat)
+            t_lons.append(lon)
+            t_texts.append(row["short"])
+            t_sizes.append(10 + val * 5)
+            t_hovers.append(
+                f"<b>{msa}</b><br>"
+                f"Macro: {row['macro_score']:.2f}  |  Asset: {row['asset_score']:.2f}<br>"
+                f"Combined: {val:.2f}<br>{tier}"
+            )
+        if t_lats:
+            fig.add_trace(go.Scattergeo(
+                lat=t_lats, lon=t_lons,
+                mode="markers+text",
+                name=tier,
+                text=t_texts,
+                textposition="top center",
+                textfont=dict(size=9, color="#222"),
+                marker=dict(
+                    size=t_sizes,
+                    color=color,
+                    opacity=0.9,
+                    line=dict(width=1.5, color="white"),
+                ),
+                hovertext=t_hovers,
+                hoverinfo="text",
+            ))
+
+    fig.update_layout(
+        geo=dict(
+            scope="usa",
+            projection_type="albers usa",
+            showland=True, landcolor="#F0F4F2",
+            showlakes=True, lakecolor="#D6E8F2",
+            showcoastlines=True, coastlinecolor="#B0C4BE", coastlinewidth=0.5,
+            showsubunits=True, subunitcolor="#C8D8D4", subunitwidth=0.5,
+            showframe=False,
+            bgcolor="rgba(0,0,0,0)",
+        ),
+        legend=dict(orientation="h", yanchor="bottom", y=1.01,
+                    xanchor="right", x=1, font=dict(size=11)),
+        margin=dict(l=0, r=0, t=30, b=0),
+        height=500,
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter, sans-serif"),
+    )
+    return fig
+
+
+def make_executive_summary(df, quarter, logo_b64=None):
+    """Generate a self-contained HTML executive summary page."""
+    from datetime import date
+
+    ranked = df[["msa","macro_score","asset_score","tier"]].copy()
+    ranked["combined"] = ((ranked["macro_score"] + ranked["asset_score"]) / 2).round(2)
+    ranked = ranked.sort_values("combined", ascending=False).reset_index(drop=True)
+
+    alta  = df[df["tier"]=="High Conviction"].sort_values("combined" if "combined" in df.columns else "macro_score", ascending=False)
+    top5  = ranked.head(5)
+
+    tier_counts = df["tier"].value_counts().to_dict()
+
+    logo_html = f'<img src="data:image/png;base64,{logo_b64}" style="height:40px;" />' if logo_b64 else "<strong>DAKI CAPITAL</strong>"
+
+    rows_html = ""
+    for i, r in top5.iterrows():
+        cls = {"High Conviction":"#1D9E75","Strong Asset":"#378ADD",
+               "Strong Macro":"#BA7517","Monitor":"#888780"}.get(r["Tier"] if "Tier" in r else r["tier"], "#888")
+        msa = r["MSA"] if "MSA" in r else r["msa"]
+        rows_html += f"""
+        <tr>
+          <td style="padding:8px 12px;font-weight:600;color:#0D4F45">{i+1}. {msa}</td>
+          <td style="padding:8px 12px;text-align:center">{r['macro_score']:.2f}</td>
+          <td style="padding:8px 12px;text-align:center">{r['asset_score']:.2f}</td>
+          <td style="padding:8px 12px;text-align:center;font-weight:700;color:#0D4F45">{r['combined']:.2f}</td>
+          <td style="padding:8px 12px;text-align:center">
+            <span style="background:{cls}22;color:{cls};padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600">{r['tier'] if 'tier' in r else r['Tier']}</span>
+          </td>
+        </tr>"""
+
+    # Tier summary pills
+    pills = ""
+    for tier, color in TIER_COLORS.items():
+        count = tier_counts.get(tier, 0)
+        pills += f'<div style="background:{color}18;border:1px solid {color}44;border-radius:8px;padding:12px 20px;text-align:center;min-width:110px"><div style="font-size:24px;font-weight:700;color:{color}">{count}</div><div style="font-size:11px;color:#555;margin-top:2px;text-transform:uppercase;letter-spacing:0.05em">{tier}</div></div>'
+
+    html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body {{ font-family: 'Inter', Arial, sans-serif; margin: 0; padding: 0; background: #fff; color: #222; }}
+  .header {{ background: linear-gradient(135deg, #0D4F45, #1A7A6B); padding: 24px 40px; display: flex; align-items: center; justify-content: space-between; }}
+  .header-right {{ text-align: right; color: rgba(255,255,255,0.7); font-size: 13px; }}
+  .body {{ padding: 32px 40px; }}
+  .section {{ margin-bottom: 32px; }}
+  .section-title {{ font-size: 13px; font-weight: 600; color: #0D4F45; border-left: 3px solid #1D9E75; padding-left: 10px; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em; }}
+  .pills {{ display: flex; gap: 12px; flex-wrap: wrap; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
+  thead tr {{ background: #0D4F45; color: white; }}
+  thead th {{ padding: 10px 12px; text-align: left; font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }}
+  tbody tr:nth-child(even) {{ background: #F7FAF9; }}
+  tbody tr {{ border-bottom: 1px solid #E8EDE9; }}
+  .footer {{ background: #F7FAF9; border-top: 1px solid #E0E8E5; padding: 16px 40px; font-size: 11px; color: #888; display: flex; justify-content: space-between; margin-top: 40px; }}
+  .disclaimer {{ font-size: 10px; color: #aaa; margin-top: 6px; }}
+</style>
+</head>
+<body>
+<div class="header">
+  <div>{logo_html}</div>
+  <div class="header-right">
+    <div style="font-size:16px;font-weight:600;color:white">MSA Intelligence Report</div>
+    <div>Industrial · Small Bay</div>
+    <div>{quarter} &nbsp;·&nbsp; {date.today().strftime('%B %d, %Y')}</div>
+  </div>
+</div>
+
+<div class="body">
+  <div class="section">
+    <div class="section-title">Market Summary</div>
+    <div class="pills">{pills}</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Top 5 Markets — Combined Score</div>
+    <table>
+      <thead><tr>
+        <th>Market</th><th style="text-align:center">Macro</th>
+        <th style="text-align:center">Asset</th>
+        <th style="text-align:center">Combined</th>
+        <th style="text-align:center">Tier</th>
+      </tr></thead>
+      <tbody>{rows_html}</tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">High Conviction Markets</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+"""
+    hc = df[df["tier"]=="High Conviction"].sort_values(
+        by=["macro_score","asset_score"], ascending=False)
+    for _, r in hc.iterrows():
+        combined = (r["macro_score"] + r["asset_score"]) / 2
+        html += f"""<div style="background:#E1F5EE;border:1px solid #1D9E7544;border-radius:8px;padding:12px 16px;min-width:140px">
+          <div style="font-weight:600;color:#0D4F45;font-size:14px">{r['msa']}</div>
+          <div style="font-size:12px;color:#555;margin-top:4px">Macro: {r['macro_score']:.2f} &nbsp; Asset: {r['asset_score']:.2f}</div>
+          <div style="font-size:13px;font-weight:700;color:#1D9E75;margin-top:4px">{combined:.2f} / 5.00</div>
+        </div>"""
+
+    html += f"""
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <div>Daki Capital · Industrial Small Bay Framework · {quarter}</div>
+  <div>Data: Illustrative (sample scores pending Green Street integration)</div>
+</div>
+<div style="padding:8px 40px;background:#F7FAF9">
+  <p class="disclaimer">This report has been prepared by Daki Capital for internal use only. Data shown is illustrative and based on sample scores. Not for distribution.</p>
+</div>
+</body></html>"""
+    return html
+
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 def render_sidebar(all_msas):
     with st.sidebar:
@@ -408,7 +649,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    tab1, tab2, tab3, tab4 = st.tabs(["Scatter Plot", "Heat Map", "Trajectories", "Rankings"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Scatter Plot", "US Map", "Heat Map", "Trajectories", "Rankings", "Executive Summary"])
 
     # ── Tab 1: Scatter ────────────────────────────────────────────────────────
     with tab1:
@@ -446,8 +687,18 @@ def main():
                 st.markdown("")
                 st.caption("Top-right = High Conviction\nBottom-left = Monitor")
 
-    # ── Tab 2: Heat Map ───────────────────────────────────────────────────────
+    # ── Tab 2: US Map ─────────────────────────────────────────────────────────
     with tab2:
+        st.markdown('<div class="section-title">US Market Heat Map</div>', unsafe_allow_html=True)
+        st.caption("Bubble size = combined score. Color = conviction tier. Hover for details.")
+        map_metric = st.radio("Score", ["Combined Score","Macro Score","Asset Score"],
+                              horizontal=True, label_visibility="collapsed")
+        map_metric_key = {"Combined Score":"combined","Macro Score":"macro_score","Asset Score":"asset_score"}[map_metric]
+        fig_map = make_us_map(filtered, metric=map_metric_key)
+        st.plotly_chart(fig_map, use_container_width=True)
+
+    # ── Tab 3: Heat Map ───────────────────────────────────────────────────────
+    with tab3:
         st.markdown('<div class="section-title">Heat Map — Market Rankings Over Time</div>', unsafe_allow_html=True)
         st.caption("Inspired by the BlackRock Asset Return Map. Each column is a quarter; cities are ranked best to worst within each period. Darker = stronger score.")
 
@@ -469,8 +720,8 @@ def main():
         fig_hm = make_blackrock_heatmap(ts_filtered, metric_key, top_n=int(top_n))
         st.plotly_chart(fig_hm, use_container_width=True)
 
-    # ── Tab 3: Trajectories ───────────────────────────────────────────────────
-    with tab3:
+    # ── Tab 4: Trajectories ───────────────────────────────────────────────────
+    with tab4:
         st.markdown('<div class="section-title">MSA Trajectories — Movement Over Time</div>', unsafe_allow_html=True)
         st.caption("Select cities to see how they have moved across the scatter plot over time. Diamond = most recent quarter. Hover over each point to see the quarter.")
         default_cities = ["Houston","Nashville","Chicago","Tampa","Detroit"]
@@ -487,8 +738,8 @@ def main():
         else:
             st.info("Select at least one market above.")
 
-    # ── Tab 4: Rankings ───────────────────────────────────────────────────────
-    with tab4:
+    # ── Tab 5: Rankings ───────────────────────────────────────────────────────
+    with tab5:
         st.markdown('<div class="section-title">MSA Rankings — sorted by combined score</div>', unsafe_allow_html=True)
         ranked = filtered[["msa","macro_score","asset_score","tier"]].copy()
         ranked["combined"] = ((ranked["macro_score"] + ranked["asset_score"]) / 2).round(2)
@@ -511,6 +762,54 @@ def main():
         st.dataframe(styled, use_container_width=True, height=580)
         csv = ranked.to_csv(index=True).encode("utf-8")
         st.download_button("Download Rankings CSV", csv, "daki_rankings.csv", "text/csv")
+
+    # ── Tab 6: Executive Summary ──────────────────────────────────────────────
+    with tab6:
+        st.markdown('<div class="section-title">Executive Summary — Exportable Report</div>', unsafe_allow_html=True)
+        st.caption("One-page summary ready to share with your IC or investors.")
+
+        col_a, col_b = st.columns([2,1])
+        with col_a:
+            report_quarter = st.selectbox("Report quarter", QUARTERS, index=len(QUARTERS)-1)
+        with col_b:
+            report_tier = st.multiselect("Include tiers", list(TIER_COLORS.keys()),
+                                         default=list(TIER_COLORS.keys()))
+
+        report_df = filtered[filtered["tier"].isin(report_tier)].copy()
+        report_df["combined"] = (report_df["macro_score"] + report_df["asset_score"]) / 2
+
+        # Preview
+        st.markdown("#### Preview")
+        prev_col1, prev_col2 = st.columns(2)
+        with prev_col1:
+            st.markdown("**Market breakdown**")
+            for tier, color in TIER_COLORS.items():
+                count = len(report_df[report_df["tier"]==tier])
+                st.markdown(
+                    f'<span class="tier-badge {TIER_CLASS[tier]}">{tier}</span>'
+                    f'<span style="margin-left:8px;font-size:13px;color:#555">{count} markets</span>',
+                    unsafe_allow_html=True)
+                st.markdown("")
+        with prev_col2:
+            st.markdown("**Top 5 markets**")
+            top5 = report_df.nlargest(5, "combined")[["msa","combined","tier"]]
+            for _, r in top5.iterrows():
+                cls = TIER_CLASS.get(r["tier"],"")
+                st.markdown(
+                    f'**{r["msa"]}** — {r["combined"]:.2f} '
+                    f'<span class="tier-badge {cls}" style="font-size:10px">{r["tier"]}</span>',
+                    unsafe_allow_html=True)
+
+        st.divider()
+        html_report = make_executive_summary(report_df, report_quarter, logo_b64)
+        st.download_button(
+            label="Download Executive Summary (HTML)",
+            data=html_report.encode("utf-8"),
+            file_name=f"daki_executive_summary_{report_quarter.replace(' ','_')}.html",
+            mime="text/html",
+            type="primary",
+        )
+        st.caption("Opens in any browser. Print to PDF from there for a clean one-pager (File → Print → Save as PDF).")
 
 if __name__ == "__main__":
     main()
