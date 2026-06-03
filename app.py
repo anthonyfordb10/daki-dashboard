@@ -618,14 +618,28 @@ def main():
         """, unsafe_allow_html=True)
     with col_btn:
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        if st.button("Filters", use_container_width=True, type="secondary"):
-            st.markdown("""
-            <script>
-            const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
-            const btn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
-            if (btn) btn.click();
-            </script>
-            """, unsafe_allow_html=True)
+        if "sidebar_open" not in st.session_state:
+            st.session_state.sidebar_open = True
+        if st.button("Filters", use_container_width=True):
+            st.session_state.sidebar_open = not st.session_state.sidebar_open
+
+    # Show filters inline when sidebar is toggled open via button
+    if not st.session_state.sidebar_open:
+        with st.expander("Filters & Settings", expanded=True):
+            fc1, fc2, fc3, fc4 = st.columns(4)
+            with fc1:
+                tiers = st.multiselect("Conviction tier",
+                    ["High Conviction","Strong Asset","Strong Macro","Monitor"],
+                    default=tiers, key="inline_tiers")
+            with fc2:
+                selected_msas = st.multiselect("MSAs", sorted(all_msas),
+                    default=selected_msas, key="inline_msas")
+            with fc3:
+                macro_range = st.slider("Macro Score", 0.0, 5.0, macro_range, 0.1, key="inline_macro")
+                asset_range = st.slider("Asset Score", 0.0, 5.0, asset_range, 0.1, key="inline_asset")
+            with fc4:
+                macro_mid = st.slider("Macro midline", 0.0, 5.0, macro_mid, 0.05, key="inline_mmid")
+                asset_mid = st.slider("Asset midline", 0.0, 5.0, asset_mid, 0.05, key="inline_amid")
 
     # Load data
     df = get_base_df(macro_mid, asset_mid)
