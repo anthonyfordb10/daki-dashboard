@@ -30,6 +30,22 @@ st.markdown(f"""
 <style>
 html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
 
+/* Dark background */
+.stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {{
+    background-color: #0F1E1B !important;
+}}
+[data-testid="stMainBlockContainer"], .block-container {{
+    background-color: #0F1E1B !important;
+}}
+
+/* Text colors for dark bg */
+p, span, label, div, h1, h2, h3, h4 {{
+    color: #E0EBE8;
+}}
+.section-title {{
+    color: #A8D5CC !important;
+}}
+
 [data-testid="stSidebar"] {{ background-color: #0D4F45; }}
 [data-testid="stSidebar"] * {{ color: #ffffff !important; }}
 [data-testid="stSidebar"] .stRadio label,
@@ -50,11 +66,11 @@ html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
 
 .kpi-row {{ display: flex; gap: 10px; margin-bottom: 18px; }}
 .kpi-card {{
-    flex: 1; background: #ffffff; border: 1px solid #e8ede9;
+    flex: 1; background: #1A2E2A; border: 1px solid #2A4A44;
     border-radius: 8px; padding: 12px 16px; border-top: 3px solid #0D4F45;
 }}
-.kpi-val {{ font-size: 24px; font-weight: 700; color: #0D4F45; }}
-.kpi-lbl {{ font-size: 11px; color: #6b7c75; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }}
+.kpi-val {{ font-size: 24px; font-weight: 700; color: #A8D5CC; }}
+.kpi-lbl {{ font-size: 11px; color: #6b9e95; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }}
 .kpi-card.green {{ border-top-color: #1D9E75; }} .kpi-card.blue {{ border-top-color: #378ADD; }}
 .kpi-card.amber {{ border-top-color: #BA7517; }} .kpi-card.gray  {{ border-top-color: #888780; }}
 
@@ -64,16 +80,16 @@ html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
 .tier-macro   {{ background: #FAEEDA; color: #854F0B; }}
 .tier-monitor {{ background: #F1EFE8; color: #5F5E5A; }}
 
-.stTabs [data-baseweb="tab-list"] {{ gap: 4px; border-bottom: 2px solid #e0e8e5; }}
-.stTabs [data-baseweb="tab"] {{ padding: 8px 18px; font-size: 13px; font-weight: 500; color: #6b7c75; border-radius: 6px 6px 0 0; }}
+.stTabs [data-baseweb="tab-list"] {{ gap: 4px; border-bottom: 2px solid #2A4A44; }}
+.stTabs [data-baseweb="tab"] {{ padding: 8px 18px; font-size: 13px; font-weight: 500; color: #6b9e95; border-radius: 6px 6px 0 0; }}
 .stTabs [aria-selected="true"] {{ background: #0D4F45 !important; color: #ffffff !important; }}
 
 .section-title {{
-    font-size: 14px; font-weight: 600; color: #0D4F45;
+    font-size: 14px; font-weight: 600; color: #A8D5CC;
     border-left: 3px solid #1D9E75; padding-left: 10px; margin-bottom: 12px;
 }}
 [data-testid="metric-container"] {{
-    background: #f7faf9; border: 1px solid #e0e8e5; border-radius: 8px; padding: 10px 14px;
+    background: #1A2E2A; border: 1px solid #2A4A44; border-radius: 8px; padding: 10px 14px;
 }}
 #MainMenu, footer, header {{ visibility: hidden; }}
 .block-container {{ padding-top: 1rem; }}
@@ -190,10 +206,10 @@ def make_scatter(df, macro_mid, asset_mid):
     fig.add_shape(type="rect", x0=0, x1=macro_mid, y0=asset_mid, y1=5.5, fillcolor="rgba(55,138,221,0.06)", line_width=0)
     fig.add_shape(type="rect", x0=macro_mid, x1=5.3, y0=0, y1=asset_mid, fillcolor="rgba(186,117,23,0.06)", line_width=0)
     for x0,x1,y0,y1 in [(macro_mid,macro_mid,0,5.5),(0,5.3,asset_mid,asset_mid)]:
-        fig.add_shape(type="line",x0=x0,x1=x1,y0=y0,y1=y1,line=dict(color="rgba(13,79,69,0.25)",width=1,dash="dash"))
+        fig.add_shape(type="line",x0=x0,x1=x1,y0=y0,y1=y1,line=dict(color="rgba(168,213,204,0.2)",width=1,dash="dash"))
     for txt,x,y in [("High Conviction ↗",macro_mid+0.08,5.35),("Strong Asset",0.08,5.35),
                     ("Strong Macro",macro_mid+0.08,0.15),("Monitor",0.08,0.15)]:
-        fig.add_annotation(text=txt,x=x,y=y,showarrow=False,font=dict(size=10,color="rgba(13,79,69,0.45)"),xanchor="left")
+        fig.add_annotation(text=txt,x=x,y=y,showarrow=False,font=dict(size=10,color="rgba(168,213,204,0.5)"),xanchor="left")
     for tier, grp in df.groupby("tier"):
         fig.add_trace(go.Scatter(
             x=grp["macro_score"], y=grp["asset_score"],
@@ -204,9 +220,9 @@ def make_scatter(df, macro_mid, asset_mid):
             hovertemplate="<b>%{customdata[0]}</b><br>Macro: %{customdata[1]:.2f}  |  Asset: %{customdata[2]:.2f}<br>Tier: %{customdata[3]}<extra></extra>"
         ))
     fig.update_layout(
-        xaxis=dict(title="Daki Macro Score", range=[0,5.3], showgrid=True, gridcolor="rgba(0,0,0,0.06)", zeroline=False, title_font=dict(size=12,color="#0D4F45")),
-        yaxis=dict(title="Daki Asset Class Score", range=[0,5.5], showgrid=True, gridcolor="rgba(0,0,0,0.06)", zeroline=False, title_font=dict(size=12,color="#0D4F45")),
-        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(title="Daki Macro Score", range=[0,5.3], showgrid=True, gridcolor="rgba(255,255,255,0.07)", zeroline=False, title_font=dict(size=12,color="#A8D5CC")),
+        yaxis=dict(title="Daki Asset Class Score", range=[0,5.5], showgrid=True, gridcolor="rgba(255,255,255,0.07)", zeroline=False, title_font=dict(size=12,color="#A8D5CC")),
+        plot_bgcolor="#0F1E1B", paper_bgcolor="#0F1E1B",
         legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="right", x=1, font=dict(size=11)),
         margin=dict(l=40,r=10,t=30,b=40), height=500,
         font=dict(family="Inter, sans-serif"), clickmode="event+select",
@@ -275,8 +291,8 @@ def make_blackrock_heatmap(ts_df, metric, top_n=20):
         xgap=3, ygap=3,
     ))
     fig.update_layout(
-        plot_bgcolor="#f7faf9",
-        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="#0F1E1B",
+        paper_bgcolor="#0F1E1B",
         margin=dict(l=50, r=80, t=40, b=20),
         height=top_n * cell_h + 80,
         xaxis=dict(
@@ -285,7 +301,7 @@ def make_blackrock_heatmap(ts_df, metric, top_n=20):
             showgrid=False, zeroline=False,
         ),
         yaxis=dict(
-            tickfont=dict(size=12, color="#555"),
+            tickfont=dict(size=12, color="#A8D5CC"),
             autorange="reversed",
             showgrid=False, zeroline=False,
         ),
@@ -309,12 +325,12 @@ def make_trajectory(ts_df, selected_cities):
             customdata=cdf["quarter"].values,
             hovertemplate="<b>" + city + "</b><br>%{customdata}<br>Macro: %{x:.2f}  |  Asset: %{y:.2f}<extra></extra>",
         ))
-    fig.add_shape(type="line",x0=3,x1=3,y0=0,y1=5.5,line=dict(color="rgba(13,79,69,0.2)",dash="dash",width=1))
-    fig.add_shape(type="line",x0=0,x1=5.3,y0=3.25,y1=3.25,line=dict(color="rgba(13,79,69,0.2)",dash="dash",width=1))
+    fig.add_shape(type="line",x0=3,x1=3,y0=0,y1=5.5,line=dict(color="rgba(168,213,204,0.2)",dash="dash",width=1))
+    fig.add_shape(type="line",x0=0,x1=5.3,y0=3.25,y1=3.25,line=dict(color="rgba(168,213,204,0.2)",dash="dash",width=1))
     fig.update_layout(
-        xaxis=dict(title="Daki Macro Score", range=[0,5.3], showgrid=True, gridcolor="rgba(0,0,0,0.06)", zeroline=False),
-        yaxis=dict(title="Daki Asset Class Score", range=[0,5.5], showgrid=True, gridcolor="rgba(0,0,0,0.06)", zeroline=False),
-        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(title="Daki Macro Score", range=[0,5.3], showgrid=True, gridcolor="rgba(255,255,255,0.07)", zeroline=False),
+        yaxis=dict(title="Daki Asset Class Score", range=[0,5.5], showgrid=True, gridcolor="rgba(255,255,255,0.07)", zeroline=False),
+        plot_bgcolor="#0F1E1B", paper_bgcolor="#0F1E1B",
         legend=dict(font=dict(size=11)),
         margin=dict(l=40,r=20,t=20,b=40), height=460,
         font=dict(family="Inter, sans-serif"),
@@ -413,7 +429,7 @@ def make_us_map(df, metric="combined"):
                 name=tier,
                 text=t_texts,
                 textposition="top center",
-                textfont=dict(size=9, color="#222"),
+                textfont=dict(size=9, color="#A8D5CC"),
                 marker=dict(
                     size=t_sizes,
                     color=color,
@@ -428,18 +444,18 @@ def make_us_map(df, metric="combined"):
         geo=dict(
             scope="usa",
             projection_type="albers usa",
-            showland=True, landcolor="#F0F4F2",
-            showlakes=True, lakecolor="#D6E8F2",
-            showcoastlines=True, coastlinecolor="#B0C4BE", coastlinewidth=0.5,
-            showsubunits=True, subunitcolor="#C8D8D4", subunitwidth=0.5,
+            showland=True, landcolor="#1A2E2A",
+            showlakes=True, lakecolor="#0D1F1C",
+            showcoastlines=True, coastlinecolor="#2A4A44", coastlinewidth=0.5,
+            showsubunits=True, subunitcolor="#2A4A44", subunitwidth=0.5,
             showframe=False,
-            bgcolor="rgba(0,0,0,0)",
+            bgcolor="#0F1E1B",
         ),
         legend=dict(orientation="h", yanchor="bottom", y=1.01,
                     xanchor="right", x=1, font=dict(size=11)),
         margin=dict(l=0, r=0, t=30, b=0),
         height=500,
-        paper_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="#0F1E1B",
         font=dict(family="Inter, sans-serif"),
     )
     return fig
