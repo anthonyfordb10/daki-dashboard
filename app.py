@@ -95,15 +95,6 @@ p, span, label, div, h1, h2, h3, h4 {{
 #MainMenu, footer, header {{ visibility: hidden; }}
 .block-container {{ padding-top: 1rem; }}
 
-/* Selectbox selected value text — black */
-div[data-baseweb="select"] div[data-testid="stMarkdownContainer"],
-div[data-baseweb="select"] span,
-div[data-baseweb="select"] div,
-div[data-baseweb="select"] p,
-[data-testid="stSelectbox"] div[data-baseweb="select"] span,
-[data-testid="stSelectbox"] div[data-baseweb="select"] div {{
-    color: #111111 !important;
-}}
 /* Multiselect and selectbox dropdown options — black text */
 div[data-baseweb="popover"] li,
 div[data-baseweb="menu"] li,
@@ -479,7 +470,7 @@ MSA_COORDS = {
     "St. Louis": (38.627, -90.198), "Tampa": (27.950, -82.457),
 }
 
-def make_us_map(df, metric="combined", zoom_state=None):
+def make_us_map(df, metric="combined"):
     # Compute value per city
     df = df.copy()
     df["_val"] = df.apply(
@@ -506,23 +497,6 @@ def make_us_map(df, metric="combined", zoom_state=None):
             lines.append(f"  · {msa}: {r['_val']:.2f}")
         hover_texts.append("<br>".join(lines))
 
-    # State center coordinates for zoom
-    STATE_CENTERS = {
-        "AL":(32.8,-86.8),"AZ":(34.3,-111.1),"AR":(34.8,-92.2),"CA":(37.2,-119.5),
-        "CO":(39.0,-105.5),"CT":(41.6,-72.7),"DE":(39.0,-75.5),"FL":(28.0,-81.5),
-        "GA":(33.0,-83.6),"HI":(20.8,-156.3),"ID":(44.4,-114.6),"IL":(40.0,-89.2),
-        "IN":(40.3,-86.1),"IA":(42.0,-93.5),"KS":(38.5,-98.4),"KY":(37.5,-85.3),
-        "LA":(31.2,-91.8),"ME":(44.7,-69.4),"MD":(39.0,-76.8),"MA":(42.3,-71.8),
-        "MI":(44.3,-85.4),"MN":(46.4,-93.1),"MS":(32.7,-89.7),"MO":(38.5,-92.5),
-        "MT":(47.0,-110.0),"NE":(41.5,-99.9),"NV":(39.3,-116.6),"NH":(43.7,-71.6),
-        "NJ":(40.1,-74.5),"NM":(34.8,-106.2),"NY":(42.9,-75.5),"NC":(35.5,-79.8),
-        "ND":(47.5,-100.5),"OH":(40.4,-82.8),"OK":(35.6,-96.9),"OR":(44.6,-120.5),
-        "PA":(40.6,-77.2),"RI":(41.7,-71.5),"SC":(33.8,-81.2),"SD":(44.4,-100.2),
-        "TN":(35.9,-86.7),"TX":(31.5,-99.3),"UT":(39.3,-111.1),"VT":(44.0,-72.7),
-        "VA":(37.8,-79.5),"WA":(47.4,-120.5),"WV":(38.6,-80.6),"WI":(44.3,-89.8),
-        "WY":(43.0,-107.6),
-    }
-
     fig = go.Figure()
 
     # ── Layer 1: state choropleth ─────────────────────────────────────────────
@@ -531,10 +505,10 @@ def make_us_map(df, metric="combined", zoom_state=None):
         z=avg_scores,
         locationmode="USA-states",
         colorscale=[
-            [0.0, "#0D2B24"],
+            [0.0, "#0D2B24"],   # very dark — low score
             [0.3, "#0D4F45"],
-            [0.6, "#1D9E75"],
-            [1.0, "#A8EDD4"],
+            [0.6, "#1D9E75"],   # mid
+            [1.0, "#A8EDD4"],   # light green — high score
         ],
         zmin=0, zmax=5,
         marker_line_color="#2A4A44",
@@ -555,15 +529,8 @@ def make_us_map(df, metric="combined", zoom_state=None):
     ))
 
     # ── Layer 2: city bubbles ─────────────────────────────────────────────────
-    # If zoomed into a state, only show MSAs in that state
-    if zoom_state:
-        visible_msas = {msa for msa, st in MSA_STATE.items() if st == zoom_state}
-        plot_df = df[df["msa"].isin(visible_msas)]
-    else:
-        plot_df = df
-
     for tier, color in TIER_COLORS.items():
-        tier_df = plot_df[plot_df["tier"] == tier]
+        tier_df = df[df["tier"] == tier]
         t_lats, t_lons, t_texts, t_sizes, t_hovers = [], [], [], [], []
         for _, row in tier_df.iterrows():
             msa = row["msa"]
@@ -574,7 +541,7 @@ def make_us_map(df, metric="combined", zoom_state=None):
             t_lats.append(lat)
             t_lons.append(lon)
             t_texts.append(row["short"])
-            t_sizes.append(8 + val * 4) if not zoom_state else t_sizes.append(14 + val * 5)
+            t_sizes.append(8 + val * 4)
             t_hovers.append(
                 f"<b>{msa}</b><br>"
                 f"Macro: {row['macro_score']:.2f}  |  Asset: {row['asset_score']:.2f}<br>"
@@ -587,7 +554,7 @@ def make_us_map(df, metric="combined", zoom_state=None):
                 name=tier,
                 text=t_texts,
                 textposition="top center",
-                textfont=dict(size=9 if not zoom_state else 12, color="white"),
+                textfont=dict(size=8, color="white"),
                 marker=dict(
                     size=t_sizes,
                     color=color,
@@ -598,25 +565,8 @@ def make_us_map(df, metric="combined", zoom_state=None):
                 hoverinfo="text",
             ))
 
-    # ── Geo layout — zoom if state selected ──────────────────────────────────
-    if zoom_state and zoom_state in STATE_CENTERS:
-        clat, clon = STATE_CENTERS[zoom_state]
-        geo_settings = dict(
-            scope="usa",
-            projection_type="albers usa",
-            showland=True,  landcolor="#1A2E2A",
-            showlakes=True, lakecolor="#0D1F1C",
-            showcoastlines=True, coastlinecolor="#2A4A44", coastlinewidth=0.5,
-            showsubunits=True, subunitcolor="#1D9E75", subunitwidth=1.5,
-            showframe=False,
-            bgcolor="#0F1E1B",
-            center=dict(lat=clat, lon=clon),
-            lonaxis_range=[clon - 6, clon + 6],
-            lataxis_range=[clat - 4, clat + 4],
-        )
-        map_height = 480
-    else:
-        geo_settings = dict(
+    fig.update_layout(
+        geo=dict(
             scope="usa",
             projection_type="albers usa",
             showland=True,  landcolor="#1A2E2A",
@@ -625,11 +575,7 @@ def make_us_map(df, metric="combined", zoom_state=None):
             showsubunits=True, subunitcolor="#2A4A44", subunitwidth=0.5,
             showframe=False,
             bgcolor="#0F1E1B",
-        )
-        map_height = 520
-
-    fig.update_layout(
-        geo=geo_settings,
+        ),
         legend=dict(
             orientation="h", yanchor="bottom", y=1.01,
             xanchor="right", x=0.92,
@@ -637,7 +583,7 @@ def make_us_map(df, metric="combined", zoom_state=None):
             bgcolor="rgba(15,30,27,0.6)",
         ),
         margin=dict(l=0, r=0, t=30, b=0),
-        height=map_height,
+        height=520,
         paper_bgcolor="#0F1E1B",
         font=dict(family="Inter, sans-serif"),
     )
@@ -805,7 +751,7 @@ def render_sidebar(all_msas):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
-    all_msas = sorted(get_base_df()["msa"].dropna().tolist())
+    all_msas = [d["msa"] for d in BASE_DATA]
     uploaded, sheet_url, tiers, selected_msas, quarter_filter, time_filter, macro_range, asset_range, macro_mid, asset_mid = render_sidebar(all_msas)
 
     # Header
@@ -936,7 +882,7 @@ def main():
     with tab2:
         st.markdown('<div class="section-title">US Market Heat Map</div>', unsafe_allow_html=True)
 
-        map_c1, map_c2, map_c3, map_c4 = st.columns([3, 2, 2, 2])
+        map_c1, map_c2, map_c3 = st.columns([3, 2, 2])
         with map_c1:
             map_metric = st.radio("Score", ["Combined Score","Macro Score","Asset Score"],
                                   horizontal=True, label_visibility="collapsed")
@@ -949,15 +895,6 @@ def main():
                                            label_visibility="collapsed")
             else:
                 map_quarter = None
-        with map_c4:
-            STATE_OPTIONS = ["All states","AL","AZ","AR","CA","CO","CT","DE","FL","GA",
-                             "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA",
-                             "MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY",
-                             "NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX",
-                             "UT","VT","VA","WA","WV","WI","WY"]
-            zoom_selection = st.selectbox("Zoom to state", STATE_OPTIONS,
-                                          index=0, label_visibility="collapsed")
-            zoom_state = None if zoom_selection == "All states" else zoom_selection
 
         map_metric_key = {"Combined Score":"combined","Macro Score":"macro_score","Asset Score":"asset_score"}[map_metric]
 
@@ -965,29 +902,19 @@ def main():
         if map_period_type == "Specific quarter" and map_quarter:
             ts_df_map = get_timeseries_df()
             ts_q = ts_df_map[ts_df_map["quarter"] == map_quarter].copy()
+            # Merge with filtered MSA list
             ts_q = ts_q[ts_q["msa"].isin(filtered["msa"].tolist())].copy()
             ts_q["combined"] = (ts_q["macro_score"] + ts_q["asset_score"]) / 2
             ts_q["tier"] = ts_q.apply(lambda r: assign_tier(r["macro_score"], r["asset_score"], macro_mid, asset_mid), axis=1)
             map_df = ts_q
-            period_label = f"**{map_quarter}**"
+            st.caption(f"Showing scores for **{map_quarter}**. Bubble size = {map_metric.lower()}. Color = conviction tier. Hover for details.")
         else:
             map_df = filtered.copy()
             if "combined" not in map_df.columns:
                 map_df["combined"] = (map_df["macro_score"] + map_df["asset_score"]) / 2
-            period_label = "**current scores** (Q1 2026)"
+            st.caption("Showing **current scores** (Q1 2026). Bubble size = combined score. Color = conviction tier. Hover for details.")
 
-        zoom_label = f" · Zoomed to **{zoom_state}**" if zoom_state else ""
-        st.caption(f"Showing {period_label}{zoom_label}. Color = conviction tier. Hover for details.")
-
-        # Show MSAs in selected state
-        if zoom_state:
-            state_msas_list = [msa for msa, st in MSA_STATE.items() if st == zoom_state and msa in map_df["msa"].values]
-            if state_msas_list:
-                st.markdown(f"**MSAs tracked in {zoom_state}:** {', '.join(state_msas_list)}")
-            else:
-                st.info(f"No tracked MSAs in {zoom_state}.")
-
-        fig_map = make_us_map(map_df, metric=map_metric_key, zoom_state=zoom_state)
+        fig_map = make_us_map(map_df, metric=map_metric_key)
         st.plotly_chart(fig_map, use_container_width=True)
 
     # ── Tab 3: Heat Map ───────────────────────────────────────────────────────
