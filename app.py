@@ -203,7 +203,12 @@ BASE_DATA = [
 QUARTERS = ["Q1 2025", "Q2 2025", "Q3 2025", "Q4 2025", "Q1 2026"]
 
 def get_base_df(macro_mid=3.0, asset_mid=3.25):
-    df = pd.DataFrame(BASE_DATA)
+    # Load real Green Street data if available, otherwise fall back to sample
+    try:
+        df = pd.read_csv("greenstreet_data.csv")
+        df = df[df["msa"].notna() & (df["msa"] != "Weighted Average")].copy()
+    except Exception:
+        df = pd.DataFrame(BASE_DATA)
     df["tier"] = df.apply(lambda r: assign_tier(r["macro_score"], r["asset_score"], macro_mid, asset_mid), axis=1)
     return df
 
@@ -1073,12 +1078,13 @@ def main():
 
         st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
         st.markdown("""
-        <div style="background:#1A2E2A;border:1px solid #2A4A44;border-radius:8px;padding:16px 20px;max-width:900px">
-          <div style="font-size:12px;font-weight:600;color:#6b9e95;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Note on current data</div>
+        <div style="background:#1A2E2A;border:1px solid #1D9E75;border-radius:8px;padding:16px 20px;max-width:900px">
+          <div style="font-size:12px;font-weight:600;color:#1D9E75;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Data Source</div>
           <div style="font-size:13px;color:#A8D5CC;line-height:1.6">
-          Scores currently shown are <strong>illustrative sample data</strong> generated for framework validation purposes.
-          Real data integration via Green Street Advisors is the next development milestone.
-          Variable weights are subject to refinement as the scoring methodology is calibrated against historical market performance.
+          Scores are computed from <strong>Green Street Advisors</strong> Industrial market data (2025).
+          Macro Score is derived from Desirability Index, Demand Growth, % College Degree, Median Household Income, and E-Commerce Penetration.
+          Asset Class Score is derived from RevPAF Growth, Supply Barriers, Supply Growth, and Market Grade.
+          Variable weights are subject to refinement as the methodology is calibrated against deal performance.
           </div>
         </div>
         """, unsafe_allow_html=True)

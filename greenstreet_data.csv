@@ -1,0 +1,51 @@
+msa,short,macro_score,asset_score,gs_grade,supply_barriers,ecommerce,desirability_index,pct_college,median_hh_income,revpaf_growth_2025,supply_growth_2025,demand_growth_2025,net_absorption_2025,data_source,last_updated
+Atlanta,ATL,2.892,3.417,B,Very Low,High,48.7,0.441,96,-0.0007,0.0262,0.0204,0.0502,Green Street Advisors,2025
+Austin,AUS,3.401,2.383,B-,Very Low,Average,74.2,0.556,104,-0.1122,0.07,0.0464,0.066,Green Street Advisors,2025
+Baltimore,BAL,2.305,2.739,B+,Average,Average,30.4,0.44,102,-0.026,0.0123,-0.0083,0.0467,Green Street Advisors,2025
+Boston,BOS,3.424,2.824,B+,Average,Very High,60.8,0.53,123,-0.019,0.0064,0.0064,0.056,Green Street Advisors,2025
+Charlotte,CHL,2.516,3.061,B-,Very Low,Very Low,66.2,0.486,90,-0.038,0.0332,0.0158,0.0737,Green Street Advisors,2025
+Chicago,CHI,2.977,3.137,B,Low,Very High,51.3,0.419,95,-0.0091,0.0098,0.0067,0.0485,Green Street Advisors,2025
+Cincinnati,CIN,2.284,3.454,B-,Very Low,Low,44.9,0.402,85,-0.0037,0.0066,0.0123,0.0498,Green Street Advisors,2025
+Cleveland,CLE,1.728,2.458,C-,Low,Very Low,37.3,0.37,75,-0.0738,0.0058,-0.0097,0.0532,Green Street Advisors,2025
+Columbus,COL,2.278,3.162,B-,Very Low,Very Low,44.3,0.418,86,-0.0468,0.0158,0.0341,0.0574,Green Street Advisors,2025
+D.C. Metro,WDC,3.353,2.184,A,Very High,Very High,36.0,0.57,141,-0.0082,0.023,0.0146,0.0415,Green Street Advisors,2025
+Dallas / Fort Worth,DFW,2.96,3.591,B+,Very Low,High,60.9,0.393,96,0.0064,0.0196,0.016,0.0551,Green Street Advisors,2025
+Denver,DEN,3.023,3.077,B,Low,Average,68.2,0.472,113,-0.0237,0.0082,0.0091,0.0475,Green Street Advisors,2025
+Detroit,DET,1.65,2.978,B-,Low,Very Low,34.8,0.373,62,-0.0299,0.0031,-0.0034,0.0353,Green Street Advisors,2025
+Fort Lauderdale,FTL,2.44,3.01,A,Average,Average,47.5,0.365,85,-0.013,0.011,0.0089,0.0667,Green Street Advisors,2025
+Honolulu,HON,2.411,1.927,B+,Very High,Low,43.7,0.362,112,-0.0374,0.013,0.0099,0.0582,Green Street Advisors,2025
+Houston,HOU,2.787,3.573,B+,Very Low,High,52.5,0.353,84,0.0101,0.0239,0.0247,0.0503,Green Street Advisors,2025
+Indianapolis,IND,2.608,3.303,B-,Very Low,Average,53.9,0.413,83,-0.0263,0.0112,0.016,0.057,Green Street Advisors,2025
+Inland Empire,INE,2.431,2.849,B+,Very Low,High,34.7,0.251,96,-0.1469,0.0167,0.0093,0.0518,Green Street Advisors,2025
+Jacksonville,JAC,1.963,2.386,B-,Low,Very Low,37.4,0.339,86,-0.0588,0.0567,0.0148,0.0661,Green Street Advisors,2025
+Kansas City,KC,2.439,3.252,C,Very Low,Very Low,45.0,0.416,88,0.0219,0.0262,0.0528,0.0438,Green Street Advisors,2025
+Las Vegas,LV,2.483,2.641,B-,Low,Low,68.6,0.261,84,-0.042,0.0362,0.0205,0.047,Green Street Advisors,2025
+Long Island,LI,2.882,2.265,A-,High,Very High,32.3,0.455,140,-0.0767,0.0038,-0.0244,0.0445,Green Street Advisors,2025
+Los Angeles,LA,2.763,2.566,A+,Average,Very High,46.5,0.359,96,-0.1243,0.0075,-0.0063,0.0463,Green Street Advisors,2025
+Louisville,LOU,1.82,3.376,B-,Very Low,Very Low,37.6,0.32,77,-0.0072,0.014,0.0074,0.0393,Green Street Advisors,2025
+Memphis,MEM,1.497,2.944,C-,Very Low,Very Low,24.6,0.309,70,-0.0444,0.0101,-0.0056,0.0355,Green Street Advisors,2025
+Miami,MIA,2.648,2.643,A+,High,High,51.4,0.333,80,-0.0087,0.0227,0.0148,0.0655,Green Street Advisors,2025
+Minneapolis,MIN,2.487,3.046,B-,Low,Average,37.1,0.474,102,-0.0049,0.0099,0.0,0.0497,Green Street Advisors,2025
+Nashville,NAS,2.941,3.578,B+,Very Low,Average,65.0,0.461,93,0.017,0.0275,0.025,0.0614,Green Street Advisors,2025
+New Jersey (Central),NJC,2.739,2.935,A-,Average,High,38.3,0.457,108,-0.0084,0.0095,0.0031,0.0419,Green Street Advisors,2025
+New Jersey (Northern),NJN,2.823,3.024,A,Average,High,49.2,0.438,111,-0.0145,0.0084,-0.0042,0.0511,Green Street Advisors,2025
+New York,NYC,2.77,2.019,A++,Very High,Very High,41.8,0.417,93,-0.0114,0.0076,-0.003,0.0757,Green Street Advisors,2025
+Oakland-East Bay,OAK,2.841,3.187,A-,Low,Very High,26.1,0.411,135,-0.042,0.004,-0.0084,0.0404,Green Street Advisors,2025
+Orange County,OC,2.929,2.482,A,High,High,45.2,0.439,121,-0.0542,0.0047,0.0064,0.0534,Green Street Advisors,2025
+Orlando,ORL,2.556,3.48,B,Very Low,Low,69.6,0.381,85,0.0135,0.0272,0.0104,0.0668,Green Street Advisors,2025
+Palm Beach,PLB,2.566,2.787,A-,Average,High,45.6,0.408,87,-0.0294,0.0146,-0.0042,0.0617,Green Street Advisors,2025
+Philadelphia,PHI,2.681,2.608,B+,Average,High,49.1,0.383,96,-0.0215,0.0308,0.0,0.0536,Green Street Advisors,2025
+Phoenix,PHX,2.974,3.184,B,Very Low,Average,66.2,0.349,94,-0.0202,0.0425,0.0423,0.0541,Green Street Advisors,2025
+Pittsburgh,PIT,2.301,2.576,B-,Low,Average,38.4,0.43,82,-0.1068,0.0052,-0.0005,0.0455,Green Street Advisors,2025
+Portland,POR,2.175,2.936,B-,Low,Low,27.9,0.461,103,-0.0215,0.0131,-0.0003,0.0403,Green Street Advisors,2025
+Raleigh-Durham,RDM,2.798,3.156,B,Very Low,Low,53.8,0.563,100,-0.0327,0.0383,0.0278,0.0655,Green Street Advisors,2025
+Richmond,RIC,1.926,3.115,C-,Very Low,Very Low,33.4,0.433,87,-0.0087,0.0109,0.0022,0.0578,Green Street Advisors,2025
+Sacramento,SAC,1.953,2.707,B-,Low,Low,31.5,0.363,105,-0.0594,0.0179,-0.0238,0.0559,Green Street Advisors,2025
+Salt Lake City,SLC,2.255,2.931,B,Low,Very Low,56.8,0.39,106,-0.0363,0.0181,-0.0057,0.0535,Green Street Advisors,2025
+San Antonio,SA,2.183,3.106,C+,Very Low,Low,52.3,0.28,81,-0.0309,0.022,0.0078,0.0558,Green Street Advisors,2025
+San Diego,SD,2.884,2.533,B+,Average,Average,57.9,0.431,115,-0.0593,0.0171,0.0115,0.0434,Green Street Advisors,2025
+San Francisco,SF,3.626,1.787,B+,Very High,Very High,56.7,0.584,157,-0.0488,0.023,0.0056,0.0601,Green Street Advisors,2025
+San Jose,SJ,3.725,2.699,A,High,Very High,63.1,0.559,181,0.0005,0.0113,0.0117,0.0734,Green Street Advisors,2025
+Seattle,SEA,3.311,3.02,A-,Low,Very High,56.8,0.504,127,-0.0597,0.0135,-0.0021,0.0493,Green Street Advisors,2025
+St. Louis,SL,2.041,2.607,C-,Low,Low,29.3,0.417,85,-0.0452,0.0051,0.0036,0.0453,Green Street Advisors,2025
+Tampa-St. Petersburg,TMP,2.412,3.042,B,Low,Low,54.1,0.376,82,0.0206,0.0389,0.0206,0.0653,Green Street Advisors,2025
