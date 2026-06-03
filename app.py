@@ -382,29 +382,64 @@ MSA_COORDS = {
 }
 
 def make_us_map(df, metric="combined"):
-    lats, lons, texts, colors, sizes, hovers = [], [], [], [], [], []
+    # Compute value per city
+    df = df.copy()
+    df["_val"] = df.apply(
+        lambda r: (r["macro_score"] + r["asset_score"]) / 2 if metric == "combined" else r[metric], axis=1)
+
+    # Aggregate to state level (average of all MSAs in that state)
+    state_scores = {}
+    state_msas   = {}
     for _, row in df.iterrows():
-        msa = row["msa"]
-        if msa not in MSA_COORDS:
+        state = MSA_STATE.get(row["msa"])
+        if not state:
             continue
-        lat, lon = MSA_COORDS[msa]
-        val = (row["macro_score"] + row["asset_score"]) / 2 if metric == "combined" else row[metric]
-        tier = row["tier"]
-        color = TIER_COLORS[tier]
-        lats.append(lat)
-        lons.append(lon)
-        colors.append(color)
-        sizes.append(10 + val * 5)
-        texts.append(row["short"])
-        hovers.append(
-            f"<b>{msa}</b><br>"
-            f"Macro: {row['macro_score']:.2f}  |  Asset: {row['asset_score']:.2f}<br>"
-            f"Combined: {val:.2f}<br>Tier: {tier}"
-        )
+        state_scores.setdefault(state, []).append(row["_val"])
+        state_msas.setdefault(state, []).append(row["msa"])
+
+    states      = list(state_scores.keys())
+    avg_scores  = [round(sum(v)/len(v), 2) for v in state_scores.values()]
+    hover_texts = []
+    for s in states:
+        msas = state_msas[s]
+        lines = [f"<b>{s}</b> — avg {round(sum(state_scores[s])/len(state_scores[s]),2):.2f}"]
+        for msa in msas:
+            r = df[df["msa"]==msa].iloc[0]
+            lines.append(f"  · {msa}: {r['_val']:.2f}")
+        hover_texts.append("<br>".join(lines))
 
     fig = go.Figure()
 
-    # One trace per tier for legend
+    # ── Layer 1: state choropleth ─────────────────────────────────────────────
+    fig.add_trace(go.Choropleth(
+        locations=states,
+        z=avg_scores,
+        locationmode="USA-states",
+        colorscale=[
+            [0.0, "#0D2B24"],   # very dark — low score
+            [0.3, "#0D4F45"],
+            [0.6, "#1D9E75"],   # mid
+            [1.0, "#A8EDD4"],   # light green — high score
+        ],
+        zmin=0, zmax=5,
+        marker_line_color="#2A4A44",
+        marker_line_width=0.8,
+        hovertext=hover_texts,
+        hoverinfo="text",
+        showscale=True,
+        colorbar=dict(
+            title=dict(text="Avg Score", font=dict(color="white", size=11)),
+            thickness=14, len=0.7,
+            tickfont=dict(color="white", size=10),
+            bgcolor="rgba(15,30,27,0.7)",
+            bordercolor="#2A4A44",
+            borderwidth=1,
+            x=1.01,
+        ),
+        name="State avg score",
+    ))
+
+    # ── Layer 2: city bubbles ─────────────────────────────────────────────────
     for tier, color in TIER_COLORS.items():
         tier_df = df[df["tier"] == tier]
         t_lats, t_lons, t_texts, t_sizes, t_hovers = [], [], [], [], []
@@ -413,15 +448,15 @@ def make_us_map(df, metric="combined"):
             if msa not in MSA_COORDS:
                 continue
             lat, lon = MSA_COORDS[msa]
-            val = (row["macro_score"] + row["asset_score"]) / 2
+            val = row["_val"]
             t_lats.append(lat)
             t_lons.append(lon)
             t_texts.append(row["short"])
-            t_sizes.append(10 + val * 5)
+            t_sizes.append(8 + val * 4)
             t_hovers.append(
                 f"<b>{msa}</b><br>"
                 f"Macro: {row['macro_score']:.2f}  |  Asset: {row['asset_score']:.2f}<br>"
-                f"Combined: {val:.2f}<br>{tier}"
+                f"Score: {val:.2f}  |  {tier}"
             )
         if t_lats:
             fig.add_trace(go.Scattergeo(
@@ -430,11 +465,11 @@ def make_us_map(df, metric="combined"):
                 name=tier,
                 text=t_texts,
                 textposition="top center",
-                textfont=dict(size=9, color="#A8D5CC"),
+                textfont=dict(size=8, color="white"),
                 marker=dict(
                     size=t_sizes,
                     color=color,
-                    opacity=0.9,
+                    opacity=0.92,
                     line=dict(width=1.5, color="white"),
                 ),
                 hovertext=t_hovers,
@@ -445,17 +480,21 @@ def make_us_map(df, metric="combined"):
         geo=dict(
             scope="usa",
             projection_type="albers usa",
-            showland=True, landcolor="#1A2E2A",
+            showland=True,  landcolor="#1A2E2A",
             showlakes=True, lakecolor="#0D1F1C",
             showcoastlines=True, coastlinecolor="#2A4A44", coastlinewidth=0.5,
             showsubunits=True, subunitcolor="#2A4A44", subunitwidth=0.5,
             showframe=False,
             bgcolor="#0F1E1B",
         ),
-        legend=dict(orientation="h", yanchor="bottom", y=1.01,
-                    xanchor="right", x=1, font=dict(size=11, color="white")),
+        legend=dict(
+            orientation="h", yanchor="bottom", y=1.01,
+            xanchor="right", x=0.92,
+            font=dict(size=11, color="white"),
+            bgcolor="rgba(15,30,27,0.6)",
+        ),
         margin=dict(l=0, r=0, t=30, b=0),
-        height=500,
+        height=520,
         paper_bgcolor="#0F1E1B",
         font=dict(family="Inter, sans-serif"),
     )
