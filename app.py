@@ -95,7 +95,21 @@ p, span, label, div, h1, h2, h3, h4 {{
 #MainMenu, footer, header {{ visibility: hidden; }}
 .block-container {{ padding-top: 1rem; }}
 
-/* Filters button */
+/* Multiselect dropdown options — black text for readability */
+div[data-baseweb="popover"] li,
+div[data-baseweb="menu"] li,
+div[data-baseweb="select"] li,
+[data-baseweb="menu"] [role="option"],
+div[data-baseweb="popover"] span,
+.stMultiSelect div[role="option"],
+div[data-testid="stMultiSelect"] div[role="listbox"] span,
+div[data-baseweb="select"] div[role="option"] span {{
+    color: #111111 !important;
+}}
+/* Selected tags in multiselect */
+div[data-baseweb="tag"] span {{
+    color: #ffffff !important;
+}}
 div[data-testid="stButton"] button {{
     background: #1D9E75 !important;
     color: white !important;
@@ -200,7 +214,12 @@ BASE_DATA = [
     {"msa":"Tampa","short":"TMP","macro_score":2.69,"asset_score":3.88},
 ]
 
-QUARTERS = ["Q1 2025", "Q2 2025", "Q3 2025", "Q4 2025", "Q1 2026"]
+QUARTERS = ["Q1 2021","Q2 2021","Q3 2021","Q4 2021",
+            "Q1 2022","Q2 2022","Q3 2022","Q4 2022",
+            "Q1 2023","Q2 2023","Q3 2023","Q4 2023",
+            "Q1 2024","Q2 2024","Q3 2024","Q4 2024",
+            "Q1 2025","Q2 2025","Q3 2025","Q4 2025",
+            "Q1 2026"]
 
 def get_base_df(macro_mid=3.0, asset_mid=3.25):
     # Load real Green Street data if available, otherwise fall back to sample
@@ -213,19 +232,32 @@ def get_base_df(macro_mid=3.0, asset_mid=3.25):
     return df
 
 def get_timeseries_df():
+    """Generate consistent simulated quarterly history based on real Green Street scores."""
+    base_df = get_base_df()
     rows = []
-    random.seed(42)
-    for city in BASE_DATA:
+    for _, city in base_df.iterrows():
         m, a = city["macro_score"], city["asset_score"]
+        rng = random.Random(hash(city["msa"]))  # consistent seed per city
         for i, q in enumerate(QUARTERS):
-            ms  = round(max(0.1, min(4.99, m + random.uniform(-0.15, 0.15) * i)), 2)
-            as_ = round(max(0.1, min(4.99, a + random.uniform(-0.2, 0.25) * i)), 2)
+            # Gentle drift — earlier quarters slightly different from current
+            drift = (i - len(QUARTERS) + 1) * 0.02  # negative = earlier
+            noise_m = rng.uniform(-0.08, 0.08) + drift * rng.uniform(0.5, 1.5)
+            noise_a = rng.uniform(-0.10, 0.10) + drift * rng.uniform(0.5, 1.5)
+            ms  = round(max(0.1, min(4.99, m + noise_m)), 2)
+            as_ = round(max(0.1, min(4.99, a + noise_a)), 2)
             rows.append({"msa": city["msa"], "short": city["short"],
-                         "quarter": q, "macro_score": ms, "asset_score": as_,
+                         "quarter": q, "quarter_idx": i,
+                         "macro_score": ms, "asset_score": as_,
                          "combined": round((ms + as_) / 2, 2)})
     return pd.DataFrame(rows)
 
-# ── Charts ────────────────────────────────────────────────────────────────────
+def filter_quarters_by_period(ts_df, time_filter):
+    """Filter timeseries dataframe by selected time period."""
+    if time_filter == "All (5 years)":
+        return ts_df
+    else:
+        filtered = ts_df[ts_df["quarter"].str.contains(time_filter)].copy()
+        return filtered if not filtered.empty else ts_df
 def make_scatter(df, macro_mid, asset_mid):
     fig = go.Figure()
     fig.add_shape(type="rect", x0=macro_mid, x1=5.3, y0=asset_mid, y1=5.5, fillcolor="rgba(29,158,117,0.07)", line_width=0)
@@ -261,7 +293,8 @@ def make_blackrock_heatmap(ts_df, metric, top_n=20):
     Columns = quarters. Each column shows the top_n cities ranked best→worst.
     Cells are large enough to read clearly.
     """
-    quarters = QUARTERS
+    # Sort quarters chronologically using QUARTERS order
+    quarters = [q for q in QUARTERS if q in ts_df["quarter"].unique()]
 
     # For each quarter, rank cities by metric descending, keep top_n
     col_data = {}
@@ -671,6 +704,10 @@ def render_sidebar(all_msas):
         selected_msas = st.multiselect("MSAs", sorted(all_msas), default=[])
         quarter_filter = st.selectbox("Reference quarter", QUARTERS, index=len(QUARTERS)-1)
 
+        st.markdown("**Time range**")
+        YEARS = ["2021","2022","2023","2024","2025","2026","All (5 years)"]
+        time_filter = st.selectbox("Show period", YEARS, index=len(YEARS)-1)
+
         macro_range = st.slider("Macro Score range", 0.0, 5.0, (0.0, 5.0), 0.1)
         asset_range = st.slider("Asset Score range", 0.0, 5.0, (0.0, 5.0), 0.1)
 
@@ -679,12 +716,12 @@ def render_sidebar(all_msas):
         macro_mid = st.slider("Macro midline", 0.0, 5.0, 3.0, 0.05)
         asset_mid = st.slider("Asset midline", 0.0, 5.0, 3.25, 0.05)
 
-    return uploaded, sheet_url, tiers, selected_msas, quarter_filter, macro_range, asset_range, macro_mid, asset_mid
+    return uploaded, sheet_url, tiers, selected_msas, quarter_filter, time_filter, macro_range, asset_range, macro_mid, asset_mid
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
     all_msas = [d["msa"] for d in BASE_DATA]
-    uploaded, sheet_url, tiers, selected_msas, quarter_filter, macro_range, asset_range, macro_mid, asset_mid = render_sidebar(all_msas)
+    uploaded, sheet_url, tiers, selected_msas, quarter_filter, time_filter, macro_range, asset_range, macro_mid, asset_mid = render_sidebar(all_msas)
 
     # Header
     col_header, col_btn = st.columns([8, 1])
@@ -827,8 +864,9 @@ def main():
 
         ts_df = get_timeseries_df()
         ts_filtered = ts_df[ts_df["msa"].isin(filtered["msa"].tolist())]
+        ts_filtered = filter_quarters_by_period(ts_filtered, time_filter)
 
-        hm_col1, hm_col2 = st.columns([3, 1])
+        hm_col1, hm_col2, hm_col3 = st.columns([3, 1, 1])
         with hm_col1:
             hm_metric = st.radio("Score to display",
                                  ["Macro Score", "Asset Score", "Combined Score"],
@@ -836,6 +874,10 @@ def main():
         with hm_col2:
             top_n = st.selectbox("Show top", [10, 15, 20, 30, len(filtered)],
                                  index=1, format_func=lambda x: f"Top {x}" if x != len(filtered) else "All")
+        with hm_col3:
+            hm_period = st.selectbox("Period", ["All (5 years)","2021","2022","2023","2024","2025","2026"],
+                                     index=0, key="hm_period")
+            ts_filtered = filter_quarters_by_period(ts_filtered, hm_period)
 
         metric_map = {"Macro Score": "macro_score", "Asset Score": "asset_score", "Combined Score": "combined"}
         metric_key = metric_map[hm_metric]
@@ -847,16 +889,34 @@ def main():
     with tab4:
         st.markdown('<div class="section-title">MSA Trajectories — Movement Over Time</div>', unsafe_allow_html=True)
         st.caption("Select cities to see how they have moved across the scatter plot over time. Diamond = most recent quarter. Hover over each point to see the quarter.")
-        default_cities = ["Houston","Nashville","Chicago","Tampa","Detroit"]
-        sel_cities = st.multiselect("Select markets to compare", sorted(all_msas),
-                                    default=default_cities, max_selections=8)
+
+        traj_col1, traj_col2 = st.columns([3,1])
+        with traj_col1:
+            default_cities = ["Houston","Nashville","Chicago","Tampa-St. Petersburg","Detroit"]
+            avail_defaults = [c for c in default_cities if c in all_msas]
+            sel_cities = st.multiselect("Select markets to compare", sorted(all_msas),
+                                        default=avail_defaults, max_selections=8)
+        with traj_col2:
+            traj_period = st.selectbox("Time period", ["All (5 years)","2021","2022","2023","2024","2025","2026"],
+                                       index=0, key="traj_period")
+
         if sel_cities:
             ts_df = get_timeseries_df()
-            fig_traj = make_trajectory(ts_df, sel_cities)
+            ts_df_filt = filter_quarters_by_period(ts_df, traj_period)
+            # Ensure quarters are sorted chronologically
+            ts_df_filt = ts_df_filt.sort_values("quarter_idx")
+
+            fig_traj = make_trajectory(ts_df_filt, sel_cities)
             st.plotly_chart(fig_traj, use_container_width=True)
-            st.markdown('<div class="section-title">Score by Quarter</div>', unsafe_allow_html=True)
-            ts_sel = ts_df[ts_df["msa"].isin(sel_cities)][["msa","quarter","macro_score","asset_score","combined"]]
+
+            st.markdown('<div class="section-title">Combined Score by Quarter</div>', unsafe_allow_html=True)
+            ts_sel = ts_df_filt[ts_df_filt["msa"].isin(sel_cities)][["msa","quarter","quarter_idx","combined"]]
+            # Sort quarters chronologically before pivoting
+            quarter_order = ts_df_filt["quarter"].drop_duplicates().sort_values().tolist()
+            # Use proper chronological sort via quarter_idx
+            q_sorted = ts_df_filt[["quarter","quarter_idx"]].drop_duplicates().sort_values("quarter_idx")["quarter"].tolist()
             ts_pivot = ts_sel.pivot_table(index="msa", columns="quarter", values="combined").round(2)
+            ts_pivot = ts_pivot.reindex(columns=[c for c in q_sorted if c in ts_pivot.columns])
             st.dataframe(ts_pivot, use_container_width=True)
         else:
             st.info("Select at least one market above.")
