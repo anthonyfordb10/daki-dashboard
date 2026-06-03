@@ -881,11 +881,40 @@ def main():
     # ── Tab 2: US Map ─────────────────────────────────────────────────────────
     with tab2:
         st.markdown('<div class="section-title">US Market Heat Map</div>', unsafe_allow_html=True)
-        st.caption("Bubble size = combined score. Color = conviction tier. Hover for details.")
-        map_metric = st.radio("Score", ["Combined Score","Macro Score","Asset Score"],
-                              horizontal=True, label_visibility="collapsed")
+
+        map_c1, map_c2, map_c3 = st.columns([3, 2, 2])
+        with map_c1:
+            map_metric = st.radio("Score", ["Combined Score","Macro Score","Asset Score"],
+                                  horizontal=True, label_visibility="collapsed")
+        with map_c2:
+            map_period_type = st.radio("Time view", ["Current", "Specific quarter"],
+                                       horizontal=True, label_visibility="collapsed")
+        with map_c3:
+            if map_period_type == "Specific quarter":
+                map_quarter = st.selectbox("Quarter", QUARTERS, index=len(QUARTERS)-1,
+                                           label_visibility="collapsed")
+            else:
+                map_quarter = None
+
         map_metric_key = {"Combined Score":"combined","Macro Score":"macro_score","Asset Score":"asset_score"}[map_metric]
-        fig_map = make_us_map(filtered, metric=map_metric_key)
+
+        # Build the dataframe to display on the map
+        if map_period_type == "Specific quarter" and map_quarter:
+            ts_df_map = get_timeseries_df()
+            ts_q = ts_df_map[ts_df_map["quarter"] == map_quarter].copy()
+            # Merge with filtered MSA list
+            ts_q = ts_q[ts_q["msa"].isin(filtered["msa"].tolist())].copy()
+            ts_q["combined"] = (ts_q["macro_score"] + ts_q["asset_score"]) / 2
+            ts_q["tier"] = ts_q.apply(lambda r: assign_tier(r["macro_score"], r["asset_score"], macro_mid, asset_mid), axis=1)
+            map_df = ts_q
+            st.caption(f"Showing scores for **{map_quarter}**. Bubble size = {map_metric.lower()}. Color = conviction tier. Hover for details.")
+        else:
+            map_df = filtered.copy()
+            if "combined" not in map_df.columns:
+                map_df["combined"] = (map_df["macro_score"] + map_df["asset_score"]) / 2
+            st.caption("Showing **current scores** (Q1 2026). Bubble size = combined score. Color = conviction tier. Hover for details.")
+
+        fig_map = make_us_map(map_df, metric=map_metric_key)
         st.plotly_chart(fig_map, use_container_width=True)
 
     # ── Tab 3: Heat Map ───────────────────────────────────────────────────────
