@@ -215,7 +215,7 @@ def make_scatter(df, macro_mid, asset_mid):
         fig.add_trace(go.Scatter(
             x=grp["macro_score"], y=grp["asset_score"],
             mode="markers+text", name=tier,
-            text=grp["short"], textposition="top center", textfont=dict(size=9, color="#333"),
+            text=grp["short"], textposition="top center", textfont=dict(size=9, color="white"),
             marker=dict(size=11, color=TIER_COLORS[tier], opacity=0.9, line=dict(width=1.5, color="white")),
             customdata=grp[["msa","macro_score","asset_score","tier"]].values,
             hovertemplate="<b>%{customdata[0]}</b><br>Macro: %{customdata[1]:.2f}  |  Asset: %{customdata[2]:.2f}<br>Tier: %{customdata[3]}<extra></extra>"
