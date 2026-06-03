@@ -122,8 +122,15 @@ div[data-baseweb="menu"] ul li div,
 [data-baseweb="popover"] ul li div {{
     color: #111111 !important;
 }}
-/* Selected tags in multiselect */
+/* Selected tags in multiselect — force visible styling */
+div[data-baseweb="tag"] {{
+    background-color: #1D9E75 !important;
+    border: none !important;
+}}
 div[data-baseweb="tag"] span {{
+    color: #ffffff !important;
+}}
+div[data-baseweb="tag"] button {{
     color: #ffffff !important;
 }}
 div[data-testid="stButton"] button {{
