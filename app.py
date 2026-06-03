@@ -9,6 +9,7 @@ from pathlib import Path
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Daki Capital — MSA Dashboard",
+    page_icon="favicon.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )
