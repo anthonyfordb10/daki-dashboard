@@ -23,8 +23,8 @@ def get_logo_b64(path):
         return None
 
 logo_b64 = get_logo_b64("logo_blanco.png")
-logo_img         = f'<img src="data:image/png;base64,{logo_b64}" style="height:56px;object-fit:contain;" />' if logo_b64 else '<span style="font-size:22px;font-weight:700;color:white;letter-spacing:0.05em;">DAKI CAPITAL</span>'
-logo_img_sidebar = f'<img src="data:image/png;base64,{logo_b64}" style="height:46px;object-fit:contain;max-width:180px;" />' if logo_b64 else '<span style="font-size:18px;font-weight:700;color:white;">DAKI CAPITAL</span>'
+logo_img         = f'<img src="data:image/png;base64,{logo_b64}" style="height:72px;object-fit:contain;" />' if logo_b64 else '<span style="font-size:22px;font-weight:700;color:white;letter-spacing:0.05em;">DAKI CAPITAL</span>'
+logo_img_sidebar = f'<img src="data:image/png;base64,{logo_b64}" style="height:58px;object-fit:contain;max-width:200px;" />' if logo_b64 else '<span style="font-size:18px;font-weight:700;color:white;">DAKI CAPITAL</span>'
 
 # ── Brand CSS ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
