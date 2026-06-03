@@ -168,7 +168,7 @@ ASSET_VARS = [
     {"key": "sale_psf",    "name": "Sale Price PSF",           "weight": 0.1667},
 ]
 
-def assign_tier(macro, asset, macro_mid=3.0, asset_mid=3.25):
+def assign_tier(macro, asset, macro_mid=2.25, asset_mid=2.56):
     if macro >= macro_mid and asset >= asset_mid:   return "High Conviction"
     elif macro < macro_mid and asset >= asset_mid:  return "Strong Asset"
     elif macro >= macro_mid and asset < asset_mid:  return "Strong Macro"
@@ -228,13 +228,37 @@ QUARTERS = ["Q1 2021","Q2 2021","Q3 2021","Q4 2021",
             "Q1 2025","Q2 2025","Q3 2025","Q4 2025",
             "Q1 2026"]
 
-def get_base_df(macro_mid=3.0, asset_mid=3.25):
-    # Load real Green Street data if available, otherwise fall back to sample
+GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1VV_IfUe3QCuDvF3uaR8IohbbL3i-Hy-ZjqsK-yVXPkw/edit?usp=sharing"
+
+@st.cache_data(ttl=3600)
+def load_google_sheet(url):
+    """Load data from public Google Sheet. Refreshes every hour."""
+    sheet_id = url.split("/d/")[1].split("/")[0]
+    csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+    df = pd.read_csv(csv_url)
+    df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
+    return df
+
+def get_base_df(macro_mid=2.25, asset_mid=2.56):
+    # 1. Try live Google Sheet (primary source)
+    try:
+        df = load_google_sheet(GOOGLE_SHEET_URL)
+        if "macro_score" in df.columns and "asset_score" in df.columns:
+            df = df[df["msa"].notna()].copy()
+            df["tier"] = df.apply(lambda r: assign_tier(r["macro_score"], r["asset_score"], macro_mid, asset_mid), axis=1)
+            return df
+    except Exception:
+        pass
+    # 2. Fall back to local CSV
     try:
         df = pd.read_csv("greenstreet_data.csv")
-        df = df[df["msa"].notna() & (df["msa"] != "Weighted Average")].copy()
+        df = df[df["msa"].notna()].copy()
+        df["tier"] = df.apply(lambda r: assign_tier(r["macro_score"], r["asset_score"], macro_mid, asset_mid), axis=1)
+        return df
     except Exception:
-        df = pd.DataFrame(BASE_DATA)
+        pass
+    # 3. Last resort: sample data
+    df = pd.DataFrame(BASE_DATA)
     df["tier"] = df.apply(lambda r: assign_tier(r["macro_score"], r["asset_score"], macro_mid, asset_mid), axis=1)
     return df
 
@@ -720,8 +744,8 @@ def render_sidebar(all_msas):
 
         st.markdown("---")
         st.markdown("**THRESHOLDS**")
-        macro_mid = st.slider("Macro midline", 0.0, 5.0, 3.0, 0.05)
-        asset_mid = st.slider("Asset midline", 0.0, 5.0, 3.25, 0.05)
+        macro_mid = st.slider("Macro midline", 0.0, 5.0, 2.25, 0.05)
+        asset_mid = st.slider("Asset midline", 0.0, 5.0, 2.56, 0.05)
 
     return uploaded, sheet_url, tiers, selected_msas, quarter_filter, time_filter, macro_range, asset_range, macro_mid, asset_mid
 
@@ -737,7 +761,7 @@ def main():
         <div class="daki-header">
             {logo_img}
             <div>
-                <div style="font-size:13px;color:rgba(255,255,255,0.65);letter-spacing:0.04em;margin-top:4px;">Industrial · Small Bay · MSA Selection Framework</div>
+                <div style="font-size:13px;color:rgba(255,255,255,0.65);letter-spacing:0.04em;margin-top:4px;">Industrial · Small Bay · MSA Selection Framework &nbsp;<span style="background:#1D9E75;color:white;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;letter-spacing:0.05em;">LIVE DATA</span></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
