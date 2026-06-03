@@ -80,18 +80,18 @@ html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
 
 /* Filters button */
 div[data-testid="stButton"] button {{
-    background: rgba(255,255,255,0.15) !important;
+    background: #1D9E75 !important;
     color: white !important;
-    border: 1px solid rgba(255,255,255,0.35) !important;
+    border: none !important;
     border-radius: 6px !important;
     font-size: 13px !important;
-    font-weight: 500 !important;
+    font-weight: 600 !important;
     letter-spacing: 0.03em !important;
     padding: 8px 14px !important;
     transition: background 0.2s;
 }}
 div[data-testid="stButton"] button:hover {{
-    background: rgba(255,255,255,0.28) !important;
+    background: #178a64 !important;
 }}
 </style>
 """, unsafe_allow_html=True)
