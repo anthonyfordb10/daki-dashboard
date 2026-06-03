@@ -747,7 +747,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Scatter Plot", "US Map", "Heat Map", "Trajectories", "Rankings", "Executive Summary"])
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["Scatter Plot", "US Map", "Heat Map", "Trajectories", "Rankings", "Executive Summary", "Methodology"])
 
     # ── Tab 1: Scatter ────────────────────────────────────────────────────────
     with tab1:
@@ -908,6 +908,160 @@ def main():
             type="primary",
         )
         st.caption("Opens in any browser. Print to PDF from there for a clean one-pager (File → Print → Save as PDF).")
+
+    # ── Tab 7: Methodology ────────────────────────────────────────────────────
+    with tab7:
+        st.markdown('<div class="section-title">Daki Score — Scoring Methodology</div>', unsafe_allow_html=True)
+
+        st.markdown("""
+        <div style="max-width:900px">
+        <p style="color:#A8D5CC;font-size:14px;line-height:1.7;margin-bottom:24px">
+        The Daki Score is a two-dimensional framework for evaluating US industrial real estate markets.
+        Each MSA receives two independent scores — a <strong>Macro Score</strong> and an <strong>Asset Class Score</strong> —
+        which together determine its position on the conviction scatter plot.
+        </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # How scores work
+        col_how1, col_how2 = st.columns(2)
+        with col_how1:
+            st.markdown("""
+            <div style="background:#1A2E2A;border:1px solid #2A4A44;border-radius:8px;padding:20px 24px;height:100%">
+            <div style="font-size:13px;font-weight:600;color:#1D9E75;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px">How It Works</div>
+            <p style="color:#A8D5CC;font-size:13px;line-height:1.7">
+            Each variable is scored on a <strong>normalized 0–1 scale</strong> based on its observed range across all tracked MSAs.
+            Variables are then multiplied by their assigned weight and summed to produce a final score between <strong>0 and 5</strong>.
+            </p>
+            <p style="color:#A8D5CC;font-size:13px;line-height:1.7;margin-top:10px">
+            The <strong>Combined Score</strong> is the simple average of Macro and Asset scores (0–5).
+            Quadrant classification uses adjustable midline thresholds — default 3.0 for Macro and 3.25 for Asset.
+            </p>
+            </div>
+            """, unsafe_allow_html=True)
+        with col_how2:
+            st.markdown("""
+            <div style="background:#1A2E2A;border:1px solid #2A4A44;border-radius:8px;padding:20px 24px;height:100%">
+            <div style="font-size:13px;font-weight:600;color:#1D9E75;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px">Quadrant Logic</div>
+            <div style="margin-bottom:10px"><span style="background:#E1F5EE22;color:#1D9E75;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600">High Conviction</span>
+            <span style="color:#A8D5CC;font-size:13px;margin-left:8px">Strong macro + strong asset fundamentals → deploy</span></div>
+            <div style="margin-bottom:10px"><span style="background:#E6F1FB22;color:#378ADD;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600">Strong Asset</span>
+            <span style="color:#A8D5CC;font-size:13px;margin-left:8px">Great industrial fundamentals, macro still developing</span></div>
+            <div style="margin-bottom:10px"><span style="background:#FAEEDA22;color:#BA7517;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600">Strong Macro</span>
+            <span style="color:#A8D5CC;font-size:13px;margin-left:8px">Strong MSA, wait for asset cycle to turn</span></div>
+            <div><span style="background:#88878022;color:#888780;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600">Monitor</span>
+            <span style="color:#A8D5CC;font-size:13px;margin-left:8px">Neither score above threshold — watch only</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+
+        # Macro variables table
+        col_m, col_a = st.columns(2)
+        with col_m:
+            st.markdown('<div class="section-title">Macro Score Variables (Y-axis)</div>', unsafe_allow_html=True)
+            st.caption("MSA-level economic fundamentals — applies across all asset classes. Updated annually.")
+            macro_rows = ""
+            for v in MACRO_VARS:
+                source = {
+                    "pop_growth":      "US Census Bureau",
+                    "employment":      "Bureau of Labor Statistics (BLS)",
+                    "education":       "Census ACS",
+                    "avg_salary":      "BLS QCEW",
+                    "gdp_per_capita":  "Bureau of Economic Analysis (BEA)",
+                    "households":      "Census ACS",
+                    "household_spend": "BLS Consumer Expenditure Survey",
+                    "pct_renters":     "Census ACS",
+                    "ecommerce_index": "US Census E-Commerce Report",
+                }.get(v["key"], "—")
+                bar_w = int(v["weight"] * 500)
+                macro_rows += f"""
+                <tr>
+                  <td style="padding:8px 10px;color:#A8D5CC;font-size:13px">{v['name']}</td>
+                  <td style="padding:8px 10px;text-align:center">
+                    <div style="display:flex;align-items:center;gap:6px">
+                      <div style="width:{bar_w}px;height:6px;background:#1D9E75;border-radius:3px;min-width:4px"></div>
+                      <span style="color:#1D9E75;font-weight:600;font-size:12px">{v['weight']:.0%}</span>
+                    </div>
+                  </td>
+                  <td style="padding:8px 10px;color:#6b9e95;font-size:11px">{source}</td>
+                </tr>"""
+            st.markdown(f"""
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+              <thead><tr style="border-bottom:1px solid #2A4A44">
+                <th style="padding:8px 10px;text-align:left;color:#6b9e95;font-size:11px;text-transform:uppercase;letter-spacing:0.05em">Variable</th>
+                <th style="padding:8px 10px;text-align:left;color:#6b9e95;font-size:11px;text-transform:uppercase;letter-spacing:0.05em">Weight</th>
+                <th style="padding:8px 10px;text-align:left;color:#6b9e95;font-size:11px;text-transform:uppercase;letter-spacing:0.05em">Source</th>
+              </tr></thead>
+              <tbody>{macro_rows}</tbody>
+            </table>
+            """, unsafe_allow_html=True)
+
+        with col_a:
+            st.markdown('<div class="section-title">Asset Class Score Variables (X-axis)</div>', unsafe_allow_html=True)
+            st.caption("Industrial Small Bay specific fundamentals. Updated quarterly via Green Street.")
+            asset_rows = ""
+            for v in ASSET_VARS:
+                source = {
+                    "rent_growth": "Green Street Advisors / CoStar",
+                    "occupancy":   "Green Street Advisors",
+                    "pipeline":    "Green Street / Yardi Matrix",
+                    "cap_rate":    "Green Street Advisors",
+                    "rent_psf":    "CoStar / CompStak",
+                    "sale_psf":    "CoStar / Real Capital Analytics",
+                }.get(v["key"], "—")
+                bar_w = int(v["weight"] * 500)
+                asset_rows += f"""
+                <tr>
+                  <td style="padding:8px 10px;color:#A8D5CC;font-size:13px">{v['name']}</td>
+                  <td style="padding:8px 10px;text-align:center">
+                    <div style="display:flex;align-items:center;gap:6px">
+                      <div style="width:{bar_w}px;height:6px;background:#378ADD;border-radius:3px;min-width:4px"></div>
+                      <span style="color:#378ADD;font-weight:600;font-size:12px">{v['weight']:.0%}</span>
+                    </div>
+                  </td>
+                  <td style="padding:8px 10px;color:#6b9e95;font-size:11px">{source}</td>
+                </tr>"""
+            st.markdown(f"""
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+              <thead><tr style="border-bottom:1px solid #2A4A44">
+                <th style="padding:8px 10px;text-align:left;color:#6b9e95;font-size:11px;text-transform:uppercase;letter-spacing:0.05em">Variable</th>
+                <th style="padding:8px 10px;text-align:left;color:#6b9e95;font-size:11px;text-transform:uppercase;letter-spacing:0.05em">Weight</th>
+                <th style="padding:8px 10px;text-align:left;color:#6b9e95;font-size:11px;text-transform:uppercase;letter-spacing:0.05em">Source</th>
+              </tr></thead>
+              <tbody>{asset_rows}</tbody>
+            </table>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+
+        # Update cadence
+        st.markdown('<div class="section-title">Data Update Cadence</div>', unsafe_allow_html=True)
+        cadence_cols = st.columns(3)
+        cadences = [
+            ("Quarterly", "#1D9E75", "Asset Class Score variables — rent growth, occupancy, pipeline, cap rates, rent PSF, sale PSF. Source: Green Street Advisors export."),
+            ("Annually", "#378ADD", "Macro Score variables — population, employment, GDP, salaries, households. Source: Census Bureau, BLS, BEA annual releases."),
+            ("Deal-level", "#BA7517", "Replacement cost ratio and yield-on-cost spread tracked separately for each active deal. Source: RSMeans, CoStar land comps."),
+        ]
+        for col, (freq, color, desc) in zip(cadence_cols, cadences):
+            col.markdown(f"""
+            <div style="background:#1A2E2A;border:1px solid #2A4A44;border-top:3px solid {color};border-radius:8px;padding:16px 18px">
+              <div style="font-size:16px;font-weight:700;color:{color};margin-bottom:8px">{freq}</div>
+              <div style="font-size:12px;color:#A8D5CC;line-height:1.6">{desc}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+        st.markdown("""
+        <div style="background:#1A2E2A;border:1px solid #2A4A44;border-radius:8px;padding:16px 20px;max-width:900px">
+          <div style="font-size:12px;font-weight:600;color:#6b9e95;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Note on current data</div>
+          <div style="font-size:13px;color:#A8D5CC;line-height:1.6">
+          Scores currently shown are <strong>illustrative sample data</strong> generated for framework validation purposes.
+          Real data integration via Green Street Advisors is the next development milestone.
+          Variable weights are subject to refinement as the scoring methodology is calibrated against historical market performance.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
