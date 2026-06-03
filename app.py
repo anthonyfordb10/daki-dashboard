@@ -927,10 +927,9 @@ def main():
                 st.progress(min(combined / 5, 1.0))
             else:
                 st.info("Click any dot to see city details.")
-                for tier, cls in TIER_CLASS.items():
-                    st.markdown(f'<span class="tier-badge {cls}">{tier}</span> ', unsafe_allow_html=True)
-                st.markdown("")
-                st.caption("Top-right = High Conviction\nBottom-left = Monitor")
+                badges = " &nbsp; ".join([f'<span class="tier-badge {cls}">{tier}</span>' for tier, cls in TIER_CLASS.items()])
+                st.markdown(badges, unsafe_allow_html=True)
+                st.caption("Top-right = High Conviction · Bottom-left = Monitor")
 
     # ── Tab 2: US Map ─────────────────────────────────────────────────────────
     with tab2:
