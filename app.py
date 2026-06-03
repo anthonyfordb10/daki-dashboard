@@ -77,6 +77,22 @@ html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
 }}
 #MainMenu, footer, header {{ visibility: hidden; }}
 .block-container {{ padding-top: 1rem; }}
+
+/* Filters button */
+div[data-testid="stButton"] button {{
+    background: rgba(255,255,255,0.15) !important;
+    color: white !important;
+    border: 1px solid rgba(255,255,255,0.35) !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.03em !important;
+    padding: 8px 14px !important;
+    transition: background 0.2s;
+}}
+div[data-testid="stButton"] button:hover {{
+    background: rgba(255,255,255,0.28) !important;
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -590,14 +606,26 @@ def main():
     uploaded, sheet_url, tiers, selected_msas, quarter_filter, macro_range, asset_range, macro_mid, asset_mid = render_sidebar(all_msas)
 
     # Header
-    st.markdown(f"""
-    <div class="daki-header">
-        {logo_img}
-        <div>
-            <div style="font-size:13px;color:rgba(255,255,255,0.65);letter-spacing:0.04em;margin-top:4px;">Industrial · Small Bay · MSA Selection Framework</div>
+    col_header, col_btn = st.columns([8, 1])
+    with col_header:
+        st.markdown(f"""
+        <div class="daki-header">
+            {logo_img}
+            <div>
+                <div style="font-size:13px;color:rgba(255,255,255,0.65);letter-spacing:0.04em;margin-top:4px;">Industrial · Small Bay · MSA Selection Framework</div>
+            </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+    with col_btn:
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+        if st.button("Filters", use_container_width=True, type="secondary"):
+            st.markdown("""
+            <script>
+            const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
+            const btn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
+            if (btn) btn.click();
+            </script>
+            """, unsafe_allow_html=True)
 
     # Load data
     df = get_base_df(macro_mid, asset_mid)
