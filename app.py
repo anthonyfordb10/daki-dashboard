@@ -95,7 +95,7 @@ p, span, label, div, h1, h2, h3, h4 {{
 #MainMenu, footer, header {{ visibility: hidden; }}
 .block-container {{ padding-top: 1rem; }}
 
-/* Multiselect dropdown options — black text for readability */
+/* Multiselect and selectbox dropdown options — black text */
 div[data-baseweb="popover"] li,
 div[data-baseweb="menu"] li,
 div[data-baseweb="select"] li,
@@ -103,7 +103,14 @@ div[data-baseweb="select"] li,
 div[data-baseweb="popover"] span,
 .stMultiSelect div[role="option"],
 div[data-testid="stMultiSelect"] div[role="listbox"] span,
-div[data-baseweb="select"] div[role="option"] span {{
+div[data-baseweb="select"] div[role="option"] span,
+div[data-baseweb="menu"] ul li span,
+div[data-baseweb="menu"] ul li div,
+[data-baseweb="menu"] span,
+[data-baseweb="menu"] div,
+[data-baseweb="popover"] ul li,
+[data-baseweb="popover"] ul li span,
+[data-baseweb="popover"] ul li div {{
     color: #111111 !important;
 }}
 /* Selected tags in multiselect */
