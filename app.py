@@ -127,6 +127,26 @@ TIER_CLASS = {
     "Monitor":         "tier-monitor",
 }
 
+MACRO_VARS = [
+    {"key": "pop_growth",      "name": "Population Growth",         "weight": 0.20},
+    {"key": "employment",      "name": "Employment Rate",           "weight": 0.10},
+    {"key": "education",       "name": "Years of Schooling",        "weight": 0.03},
+    {"key": "avg_salary",      "name": "Average Salary",            "weight": 0.05},
+    {"key": "gdp_per_capita",  "name": "GDP Per Capita",            "weight": 0.20},
+    {"key": "households",      "name": "Number of Households",      "weight": 0.02},
+    {"key": "household_spend", "name": "Avg Household Spend",       "weight": 0.20},
+    {"key": "pct_renters",     "name": "% Renter-Occupied",         "weight": 0.10},
+    {"key": "ecommerce_index", "name": "E-Commerce Index",          "weight": 0.10},
+]
+ASSET_VARS = [
+    {"key": "rent_growth", "name": "Rent Growth",              "weight": 0.1667},
+    {"key": "occupancy",   "name": "Average Occupancy",        "weight": 0.3333},
+    {"key": "pipeline",    "name": "Pipeline / Inventory",     "weight": 0.1667},
+    {"key": "cap_rate",    "name": "Cap Rates",                "weight": 0.0833},
+    {"key": "rent_psf",    "name": "Asking Rent PSF",          "weight": 0.0833},
+    {"key": "sale_psf",    "name": "Sale Price PSF",           "weight": 0.1667},
+]
+
 def assign_tier(macro, asset, macro_mid=3.0, asset_mid=3.25):
     if macro >= macro_mid and asset >= asset_mid:   return "High Conviction"
     elif macro < macro_mid and asset >= asset_mid:  return "Strong Asset"
