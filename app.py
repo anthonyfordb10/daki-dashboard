@@ -472,17 +472,32 @@ def make_blackrock_heatmap(ts_df, metric, top_n=20):
 def make_trajectory(ts_df, selected_cities):
     fig = go.Figure()
     palette = ["#1D9E75","#378ADD","#BA7517","#D85A30","#533AB7","#0D4F45","#C0392B","#8E44AD"]
+
+    # Determine sort column
+    sort_col = "quarter_idx" if "quarter_idx" in ts_df.columns else "quarter"
+    q_col    = "quarter" if "quarter" in ts_df.columns else sort_col
+
     for i, city in enumerate(selected_cities):
-        cdf = ts_df[ts_df["msa"] == city].sort_values("quarter")
+        cdf = ts_df[ts_df["msa"] == city].copy()
+        if cdf.empty:
+            continue
+        cdf = cdf.sort_values(sort_col)
         color = palette[i % len(palette)]
+        short = cdf["short"].values[0] if "short" in cdf.columns and len(cdf) > 0 else city[:3].upper()
+        quarters = cdf[q_col].values if q_col in cdf.columns else [""] * len(cdf)
+        n = len(cdf)
         fig.add_trace(go.Scatter(
             x=cdf["macro_score"], y=cdf["asset_score"],
             mode="lines+markers+text", name=city,
             line=dict(color=color, width=2),
-            marker=dict(size=[8]*(len(cdf)-1)+[13], color=color, symbol=["circle"]*(len(cdf)-1)+["diamond"]),
-            text=[""] * (len(cdf)-1) + [cdf["short"].values[0]],
+            marker=dict(
+                size=[8]*(n-1)+[13] if n > 0 else [8],
+                color=color,
+                symbol=["circle"]*(n-1)+["diamond"] if n > 0 else ["circle"]
+            ),
+            text=[""]*(n-1)+[short] if n > 0 else [short],
             textposition="top right", textfont=dict(size=10),
-            customdata=cdf["quarter"].values,
+            customdata=quarters,
             hovertemplate="<b>" + city + "</b><br>%{customdata}<br>Macro: %{x:.2f}  |  Asset: %{y:.2f}<extra></extra>",
         ))
     fig.add_shape(type="line",x0=3,x1=3,y0=0,y1=5.5,line=dict(color="rgba(168,213,204,0.2)",dash="dash",width=1))
