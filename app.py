@@ -246,8 +246,15 @@ def load_tab(tab_key: str) -> pd.DataFrame:
     """Load a specific tab from the master Google Sheet by GID."""
     gid = SHEET_TABS.get(tab_key, 0)
     url = f"https://docs.google.com/spreadsheets/d/{MASTER_SHEET_ID}/export?format=csv&gid={gid}"
-    df = pd.read_csv(url, skiprows=1)  # skip the title row we added
-    df.columns = [str(c).strip().lower().replace(" ", "_").replace("(", "").replace(")", "").replace("/", "_") for c in df.columns]
+    # Read without skipping — detect if first row is a title
+    df = pd.read_csv(url, header=None)
+    # If first cell looks like a title (not a column name like 'msa' or 'year'), skip it
+    first_cell = str(df.iloc[0, 0]).strip().lower()
+    if first_cell not in ["msa", "year", "market", "market id"] and len(first_cell) > 20:
+        df = pd.read_csv(url, skiprows=1)
+    else:
+        df = pd.read_csv(url)
+    df.columns = [str(c).strip().lower().replace(" ", "_").replace("(","").replace(")","").replace("/","_") for c in df.columns]
     df = df.dropna(how="all")
     return df
 
@@ -780,13 +787,13 @@ def render_sidebar(all_msas):
         """, unsafe_allow_html=True)
         st.markdown("---")
 
-        st.markdown("**DATA SOURCE**")
-        data_mode = st.radio("", ["Sample data", "Upload file", "Google Sheet"], label_visibility="collapsed")
+        st.markdown("""
+        <div style="background:rgba(29,158,117,0.15);border:1px solid #1D9E75;border-radius:6px;padding:8px 12px;margin-bottom:8px">
+            <div style="font-size:11px;color:#1D9E75;font-weight:600;text-transform:uppercase;letter-spacing:0.05em">Live Data Connected</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px">Green Street Advisors · Master Sheet · Refreshes hourly</div>
+        </div>
+        """, unsafe_allow_html=True)
         uploaded, sheet_url = None, None
-        if data_mode == "Upload file":
-            uploaded = st.file_uploader("CSV or Excel", type=["csv","xlsx"])
-        elif data_mode == "Google Sheet":
-            sheet_url = st.text_input("Google Sheet URL", placeholder="https://docs.google.com/spreadsheets/d/...")
 
         st.markdown("---")
         st.markdown("**FILTERS**")
@@ -985,8 +992,10 @@ def main():
         st.caption("Inspired by the BlackRock Asset Return Map. Each column is a quarter; cities are ranked best to worst within each period. Darker = stronger score.")
 
         ts_df = get_timeseries_df()
-        ts_filtered = ts_df[ts_df["msa"].isin(filtered["msa"].tolist())]
-        ts_filtered = filter_quarters_by_period(ts_filtered, time_filter)
+        ts_filtered = None
+        if "msa" in ts_df.columns and "msa" in filtered.columns:
+            ts_filtered = ts_df[ts_df["msa"].isin(filtered["msa"].tolist())]
+            ts_filtered = filter_quarters_by_period(ts_filtered, time_filter)
 
         hm_col1, hm_col2, hm_col3 = st.columns([3, 1, 1])
         with hm_col1:
@@ -999,13 +1008,17 @@ def main():
         with hm_col3:
             hm_period = st.selectbox("Period", ["All (5 years)","2021","2022","2023","2024","2025","2026"],
                                      index=0, key="hm_period")
-            ts_filtered = filter_quarters_by_period(ts_filtered, hm_period)
+            if ts_filtered is not None:
+                ts_filtered = filter_quarters_by_period(ts_filtered, hm_period)
 
         metric_map = {"Macro Score": "macro_score", "Asset Score": "asset_score", "Combined Score": "combined"}
         metric_key = metric_map[hm_metric]
 
-        fig_hm = make_blackrock_heatmap(ts_filtered, metric_key, top_n=int(top_n))
-        st.plotly_chart(fig_hm, use_container_width=True)
+        if ts_filtered is not None and len(ts_filtered) > 0:
+            fig_hm = make_blackrock_heatmap(ts_filtered, metric_key, top_n=int(top_n))
+            st.plotly_chart(fig_hm, use_container_width=True)
+        else:
+            st.info("No time series data available for the selected filters.")
 
     # ── Tab 4: Trajectories ───────────────────────────────────────────────────
     with tab4:
