@@ -228,28 +228,56 @@ QUARTERS = ["Q1 2021","Q2 2021","Q3 2021","Q4 2021",
             "Q1 2025","Q2 2025","Q3 2025","Q4 2025",
             "Q1 2026"]
 
-GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1VV_IfUe3QCuDvF3uaR8IohbbL3i-Hy-ZjqsK-yVXPkw/edit?usp=sharing"
+MASTER_SHEET_ID = "1y9UJNqo5lyJbRM0Q2ZrxShuoSLX2YWpG"
+
+# Tab GIDs — read directly from Google Sheet URLs
+SHEET_TABS = {
+    "current_scores":  1807410370,   # 📊 Current Scores (2025)
+    "time_series":     1917797399,   # 📈 Time Series (2021-2025)
+    "cap_rates":       1646760439,   # 💰 Cap Rates (Quarterly)
+    "revpaf":          1634256058,   # 📉 RevPAF Growth (Annual)
+    "market_grades":   1998572184,   # 🏢 Market Grades (Raw)
+    "supply_growth":   196482657,    # 📦 Supply Growth (Ind Annual)
+    "employment":      1686732599,   # 👷 Employment (Super Sector)
+}
 
 @st.cache_data(ttl=3600)
-def load_google_sheet(url):
-    """Load data from public Google Sheet. Refreshes every hour."""
-    sheet_id = url.split("/d/")[1].split("/")[0]
-    csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
-    df = pd.read_csv(csv_url)
-    df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
+def load_tab(tab_key: str) -> pd.DataFrame:
+    """Load a specific tab from the master Google Sheet by GID."""
+    gid = SHEET_TABS.get(tab_key, 0)
+    url = f"https://docs.google.com/spreadsheets/d/{MASTER_SHEET_ID}/export?format=csv&gid={gid}"
+    df = pd.read_csv(url, skiprows=1)  # skip the title row we added
+    df.columns = [str(c).strip().lower().replace(" ", "_").replace("(", "").replace(")", "").replace("/", "_") for c in df.columns]
+    df = df.dropna(how="all")
     return df
 
 def get_base_df(macro_mid=2.25, asset_mid=2.56):
-    # 1. Try live Google Sheet (primary source)
+    """Load current scores from master sheet tab 1."""
+    # 1. Try master Google Sheet — Current Scores tab
     try:
-        df = load_google_sheet(GOOGLE_SHEET_URL)
-        if "macro_score" in df.columns and "asset_score" in df.columns:
+        df = load_tab("current_scores")
+        if "macro_score" in df.columns and "asset_score" in df.columns and "msa" in df.columns:
+            df = df[df["msa"].notna() & (df["msa"] != "msa")].copy()
+            df["macro_score"] = pd.to_numeric(df["macro_score"], errors="coerce")
+            df["asset_score"] = pd.to_numeric(df["asset_score"], errors="coerce")
+            df = df.dropna(subset=["macro_score", "asset_score"])
+            df["tier"] = df.apply(lambda r: assign_tier(r["macro_score"], r["asset_score"], macro_mid, asset_mid), axis=1)
+            return df
+    except Exception as e:
+        pass
+    # 2. Fall back to old single-tab Google Sheet
+    try:
+        old_url = "https://docs.google.com/spreadsheets/d/1VV_IfUe3QCuDvF3uaR8IohbbL3i-Hy-ZjqsK-yVXPkw"
+        sheet_id = old_url.split("/d/")[1].split("/")[0]
+        df = pd.read_csv(f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv")
+        df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
+        if "macro_score" in df.columns:
             df = df[df["msa"].notna()].copy()
             df["tier"] = df.apply(lambda r: assign_tier(r["macro_score"], r["asset_score"], macro_mid, asset_mid), axis=1)
             return df
     except Exception:
         pass
-    # 2. Fall back to local CSV
+    # 3. Local CSV fallback
     try:
         df = pd.read_csv("greenstreet_data.csv")
         df = df[df["msa"].notna()].copy()
@@ -257,25 +285,60 @@ def get_base_df(macro_mid=2.25, asset_mid=2.56):
         return df
     except Exception:
         pass
-    # 3. Last resort: sample data
+    # 4. Sample data last resort
     df = pd.DataFrame(BASE_DATA)
     df["tier"] = df.apply(lambda r: assign_tier(r["macro_score"], r["asset_score"], macro_mid, asset_mid), axis=1)
     return df
 
+@st.cache_data(ttl=3600)
 def get_timeseries_df():
-    """Generate consistent simulated quarterly history based on real Green Street scores."""
+    """Load real annual time series from master sheet tab 2, interpolate to quarters."""
+    try:
+        df = load_tab("time_series")
+        if "year" in df.columns and "macro_score" in df.columns and "msa" in df.columns:
+            df["macro_score"] = pd.to_numeric(df["macro_score"], errors="coerce")
+            df["asset_score"]  = pd.to_numeric(df["asset_score"],  errors="coerce")
+            df["year"] = pd.to_numeric(df["year"], errors="coerce").astype("Int64")
+            df = df.dropna(subset=["macro_score", "asset_score", "year", "msa"])
+            df = df[df["msa"] != "msa"].copy()
+
+            # Expand each annual row into 4 quarters with slight interpolation
+            rows = []
+            for _, row in df.iterrows():
+                yr = int(row["year"])
+                m, a = float(row["macro_score"]), float(row["asset_score"])
+                short = row.get("short", row["msa"][:3].upper())
+                for q_num, q_label in enumerate(["Q1","Q2","Q3","Q4"], 1):
+                    quarter = f"{q_label} {yr}"
+                    q_idx = QUARTERS.index(quarter) if quarter in QUARTERS else None
+                    if q_idx is None:
+                        continue
+                    # Slight intra-year drift
+                    drift = (q_num - 2.5) * 0.01
+                    rng = random.Random(hash(f"{row['msa']}{yr}{q_num}"))
+                    ms  = round(max(0.1, min(4.99, m + drift + rng.uniform(-0.03, 0.03))), 2)
+                    as_ = round(max(0.1, min(4.99, a + drift + rng.uniform(-0.03, 0.03))), 2)
+                    rows.append({
+                        "msa": row["msa"], "short": short,
+                        "quarter": quarter, "quarter_idx": q_idx,
+                        "macro_score": ms, "asset_score": as_,
+                        "combined": round((ms + as_) / 2, 2),
+                    })
+            if rows:
+                return pd.DataFrame(rows)
+    except Exception as e:
+        pass
+
+    # Fallback: simulate from current scores
     base_df = get_base_df()
     rows = []
     for _, city in base_df.iterrows():
         m, a = city["macro_score"], city["asset_score"]
-        rng = random.Random(hash(city["msa"]))  # consistent seed per city
+        rng = random.Random(hash(city["msa"]))
         for i, q in enumerate(QUARTERS):
-            # Gentle drift — earlier quarters slightly different from current
-            drift = (i - len(QUARTERS) + 1) * 0.02  # negative = earlier
-            noise_m = rng.uniform(-0.08, 0.08) + drift * rng.uniform(0.5, 1.5)
-            noise_a = rng.uniform(-0.10, 0.10) + drift * rng.uniform(0.5, 1.5)
-            ms  = round(max(0.1, min(4.99, m + noise_m)), 2)
-            as_ = round(max(0.1, min(4.99, a + noise_a)), 2)
+            drift = (i - len(QUARTERS) + 1) * 0.02
+            ms  = round(max(0.1, min(4.99, m + rng.uniform(-0.08, 0.08) + drift)), 2)
+            as_ = round(max(0.1, min(4.99, a + rng.uniform(-0.10, 0.10) + drift)), 2)
             rows.append({"msa": city["msa"], "short": city["short"],
                          "quarter": q, "quarter_idx": i,
                          "macro_score": ms, "asset_score": as_,
@@ -286,9 +349,8 @@ def filter_quarters_by_period(ts_df, time_filter):
     """Filter timeseries dataframe by selected time period."""
     if time_filter == "All (5 years)":
         return ts_df
-    else:
-        filtered = ts_df[ts_df["quarter"].str.contains(time_filter)].copy()
-        return filtered if not filtered.empty else ts_df
+    filtered = ts_df[ts_df["quarter"].str.contains(str(time_filter))].copy()
+    return filtered if not filtered.empty else ts_df
 def make_scatter(df, macro_mid, asset_mid):
     fig = go.Figure()
     fig.add_shape(type="rect", x0=macro_mid, x1=5.3, y0=asset_mid, y1=5.5, fillcolor="rgba(29,158,117,0.07)", line_width=0)
