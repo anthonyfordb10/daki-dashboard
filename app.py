@@ -246,16 +246,13 @@ def load_tab(tab_key: str) -> pd.DataFrame:
     """Load a specific tab from the master Google Sheet by GID."""
     gid = SHEET_TABS.get(tab_key, 0)
     url = f"https://docs.google.com/spreadsheets/d/{MASTER_SHEET_ID}/export?format=csv&gid={gid}"
-    # Read without skipping — detect if first row is a title
-    df = pd.read_csv(url, header=None)
-    # If first cell looks like a title (not a column name like 'msa' or 'year'), skip it
-    first_cell = str(df.iloc[0, 0]).strip().lower()
-    if first_cell not in ["msa", "year", "market", "market id"] and len(first_cell) > 20:
-        df = pd.read_csv(url, skiprows=1)
-    else:
-        df = pd.read_csv(url)
-    df.columns = [str(c).strip().lower().replace(" ", "_").replace("(","").replace(")","").replace("/","_") for c in df.columns]
+    # Master sheet tabs all have a title row in row 1, headers in row 2
+    # Read with header=1 (0-indexed) to use row 2 as headers
+    df = pd.read_csv(url, header=1)
+    df.columns = [str(c).strip().lower().replace(" ","_").replace("(","").replace(")","").replace("/","_") for c in df.columns]
+    # Drop rows that are completely empty or are the header repeated
     df = df.dropna(how="all")
+    df = df[df.iloc[:,0].astype(str).str.strip() != df.columns[0]]
     return df
 
 def get_base_df(macro_mid=2.25, asset_mid=2.56):
@@ -1038,17 +1035,19 @@ def main():
         if sel_cities:
             ts_df = get_timeseries_df()
             ts_df_filt = filter_quarters_by_period(ts_df, traj_period)
-            # Ensure quarters are sorted chronologically
-            ts_df_filt = ts_df_filt.sort_values("quarter_idx")
+            # Sort chronologically using QUARTERS list order
+            if "quarter_idx" in ts_df_filt.columns:
+                ts_df_filt = ts_df_filt.sort_values("quarter_idx")
+            else:
+                ts_df_filt["quarter_idx"] = ts_df_filt["quarter"].apply(
+                    lambda q: QUARTERS.index(q) if q in QUARTERS else 999)
+                ts_df_filt = ts_df_filt.sort_values("quarter_idx")
 
             fig_traj = make_trajectory(ts_df_filt, sel_cities)
             st.plotly_chart(fig_traj, use_container_width=True)
 
             st.markdown('<div class="section-title">Combined Score by Quarter</div>', unsafe_allow_html=True)
             ts_sel = ts_df_filt[ts_df_filt["msa"].isin(sel_cities)][["msa","quarter","quarter_idx","combined"]]
-            # Sort quarters chronologically before pivoting
-            quarter_order = ts_df_filt["quarter"].drop_duplicates().sort_values().tolist()
-            # Use proper chronological sort via quarter_idx
             q_sorted = ts_df_filt[["quarter","quarter_idx"]].drop_duplicates().sort_values("quarter_idx")["quarter"].tolist()
             ts_pivot = ts_sel.pivot_table(index="msa", columns="quarter", values="combined").round(2)
             ts_pivot = ts_pivot.reindex(columns=[c for c in q_sorted if c in ts_pivot.columns])
