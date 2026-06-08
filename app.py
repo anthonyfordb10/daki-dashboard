@@ -1044,12 +1044,14 @@ def main():
 
         if sel_cities:
             ts_df = get_timeseries_df()
-            ts_df_filt = filter_quarters_by_period(ts_df, traj_period)
-            # Sort chronologically
+            ts_df_filt = filter_quarters_by_period(ts_df, traj_period).copy()
+            # Add quarter_idx if missing
+            q_idx_map = {q: i for i, q in enumerate(QUARTERS)}
             if "quarter_idx" not in ts_df_filt.columns:
-                q_idx_map = {q: i for i, q in enumerate(QUARTERS)}
-                ts_df_filt = ts_df_filt.copy()
-                ts_df_filt["quarter_idx"] = ts_df_filt["quarter"].map(q_idx_map).fillna(999).astype(int)
+                if "quarter" in ts_df_filt.columns:
+                    ts_df_filt["quarter_idx"] = ts_df_filt["quarter"].map(q_idx_map).fillna(999).astype(int)
+                else:
+                    ts_df_filt["quarter_idx"] = 0
             ts_df_filt = ts_df_filt.sort_values("quarter_idx")
 
             fig_traj = make_trajectory(ts_df_filt, sel_cities)
