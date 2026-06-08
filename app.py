@@ -246,52 +246,56 @@ def load_tab(tab_key: str) -> pd.DataFrame:
     """Load a specific tab from the master Google Sheet by GID."""
     gid = SHEET_TABS.get(tab_key, 0)
     url = f"https://docs.google.com/spreadsheets/d/{MASTER_SHEET_ID}/export?format=csv&gid={gid}"
-    # Master sheet tabs all have a title row in row 1, headers in row 2
-    # Read with header=1 (0-indexed) to use row 2 as headers
-    df = pd.read_csv(url, header=1)
+    # Try header=1 first (title row + header row structure)
+    try:
+        df = pd.read_csv(url, header=1)
+        cols = [str(c).strip().lower().replace(" ","_").replace("(","").replace(")","").replace("/","_") for c in df.columns]
+        df.columns = cols
+        df = df.dropna(how="all")
+        # If msa or year column exists and has real data, use this
+        for key_col in ["msa", "year", "market"]:
+            if key_col in df.columns and df[key_col].dropna().shape[0] > 5:
+                return df
+    except Exception:
+        pass
+    # Fallback: header=0 (no title row)
+    df = pd.read_csv(url, header=0)
     df.columns = [str(c).strip().lower().replace(" ","_").replace("(","").replace(")","").replace("/","_") for c in df.columns]
-    # Drop rows that are completely empty or are the header repeated
     df = df.dropna(how="all")
-    df = df[df.iloc[:,0].astype(str).str.strip() != df.columns[0]]
     return df
 
 def get_base_df(macro_mid=2.25, asset_mid=2.56):
     """Load current scores from master sheet tab 1."""
+    errors = []
     # 1. Try master Google Sheet — Current Scores tab
     try:
         df = load_tab("current_scores")
         if "macro_score" in df.columns and "asset_score" in df.columns and "msa" in df.columns:
-            df = df[df["msa"].notna() & (df["msa"] != "msa")].copy()
+            df = df[df["msa"].notna() & (df["msa"].astype(str) != "msa")].copy()
             df["macro_score"] = pd.to_numeric(df["macro_score"], errors="coerce")
             df["asset_score"] = pd.to_numeric(df["asset_score"], errors="coerce")
             df = df.dropna(subset=["macro_score", "asset_score"])
-            df["tier"] = df.apply(lambda r: assign_tier(r["macro_score"], r["asset_score"], macro_mid, asset_mid), axis=1)
-            return df
+            if len(df) > 5:
+                df["tier"] = df.apply(lambda r: assign_tier(r["macro_score"], r["asset_score"], macro_mid, asset_mid), axis=1)
+                return df
+        errors.append(f"master sheet cols: {list(df.columns[:5])}")
     except Exception as e:
-        pass
-    # 2. Fall back to old single-tab Google Sheet
-    try:
-        old_url = "https://docs.google.com/spreadsheets/d/1VV_IfUe3QCuDvF3uaR8IohbbL3i-Hy-ZjqsK-yVXPkw"
-        sheet_id = old_url.split("/d/")[1].split("/")[0]
-        df = pd.read_csv(f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv")
-        df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
-        if "macro_score" in df.columns:
-            df = df[df["msa"].notna()].copy()
-            df["tier"] = df.apply(lambda r: assign_tier(r["macro_score"], r["asset_score"], macro_mid, asset_mid), axis=1)
-            return df
-    except Exception:
-        pass
-    # 3. Local CSV fallback
+        errors.append(f"master sheet error: {e}")
+
+    # 2. Local CSV fallback
     try:
         df = pd.read_csv("greenstreet_data.csv")
         df = df[df["msa"].notna()].copy()
         df["tier"] = df.apply(lambda r: assign_tier(r["macro_score"], r["asset_score"], macro_mid, asset_mid), axis=1)
-        return df
-    except Exception:
-        pass
-    # 4. Sample data last resort
+        if len(df) > 5:
+            return df
+    except Exception as e:
+        errors.append(f"csv error: {e}")
+
+    # 3. Sample data last resort — store errors for debug
     df = pd.DataFrame(BASE_DATA)
     df["tier"] = df.apply(lambda r: assign_tier(r["macro_score"], r["asset_score"], macro_mid, asset_mid), axis=1)
+    df["_load_errors"] = str(errors)
     return df
 
 @st.cache_data(ttl=3600)
@@ -817,8 +821,14 @@ def render_sidebar(all_msas):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
-    all_msas = [d["msa"] for d in BASE_DATA]
+    # Load data early so all_msas reflects real data
+    _df_init = get_base_df()
+    all_msas = sorted(_df_init["msa"].dropna().tolist())
     uploaded, sheet_url, tiers, selected_msas, quarter_filter, time_filter, macro_range, asset_range, macro_mid, asset_mid = render_sidebar(all_msas)
+
+    # Show debug info if data fell back to sample
+    if "_load_errors" in _df_init.columns:
+        st.warning(f"⚠️ Could not load from master sheet. Using local data. Debug: {_df_init['_load_errors'].iloc[0]}")
 
     # Header
     col_header, col_btn = st.columns([8, 1])
@@ -1035,13 +1045,12 @@ def main():
         if sel_cities:
             ts_df = get_timeseries_df()
             ts_df_filt = filter_quarters_by_period(ts_df, traj_period)
-            # Sort chronologically using QUARTERS list order
-            if "quarter_idx" in ts_df_filt.columns:
-                ts_df_filt = ts_df_filt.sort_values("quarter_idx")
-            else:
-                ts_df_filt["quarter_idx"] = ts_df_filt["quarter"].apply(
-                    lambda q: QUARTERS.index(q) if q in QUARTERS else 999)
-                ts_df_filt = ts_df_filt.sort_values("quarter_idx")
+            # Sort chronologically
+            if "quarter_idx" not in ts_df_filt.columns:
+                q_idx_map = {q: i for i, q in enumerate(QUARTERS)}
+                ts_df_filt = ts_df_filt.copy()
+                ts_df_filt["quarter_idx"] = ts_df_filt["quarter"].map(q_idx_map).fillna(999).astype(int)
+            ts_df_filt = ts_df_filt.sort_values("quarter_idx")
 
             fig_traj = make_trajectory(ts_df_filt, sel_cities)
             st.plotly_chart(fig_traj, use_container_width=True)
