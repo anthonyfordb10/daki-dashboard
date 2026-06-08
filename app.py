@@ -303,6 +303,18 @@ def get_timeseries_df():
     """Load real annual time series from master sheet tab 2, interpolate to quarters."""
     try:
         df = load_tab("time_series")
+        # Normalize column names — sheet may use variant names
+        _remap = {}
+        for _c in df.columns:
+            _cl = _c.lower().strip()
+            if _cl in ("market","city","msa_name") and "msa" not in df.columns:
+                _remap[_c] = "msa"
+            elif _cl in ("macro","daki_macro_score","daki_macro") and "macro_score" not in df.columns:
+                _remap[_c] = "macro_score"
+            elif _cl in ("asset","daki_asset_score","daki_asset") and "asset_score" not in df.columns:
+                _remap[_c] = "asset_score"
+        if _remap:
+            df = df.rename(columns=_remap)
         if "year" in df.columns and "macro_score" in df.columns and "msa" in df.columns:
             df["macro_score"] = pd.to_numeric(df["macro_score"], errors="coerce")
             df["asset_score"]  = pd.to_numeric(df["asset_score"],  errors="coerce")
@@ -1014,6 +1026,12 @@ def main():
         st.caption("Inspired by the BlackRock Asset Return Map. Each column is a quarter; cities are ranked best to worst within each period. Darker = stronger score.")
 
         ts_df = get_timeseries_df()
+        # Normalize MSA column name
+        _msa_col = next((c for c in ts_df.columns if c.lower() in ("msa", "market", "city")), None)
+        if _msa_col and _msa_col != "msa":
+            ts_df = ts_df.rename(columns={_msa_col: "msa"})
+        if "combined" not in ts_df.columns and "macro_score" in ts_df.columns and "asset_score" in ts_df.columns:
+            ts_df["combined"] = (ts_df["macro_score"] + ts_df["asset_score"]) / 2
         ts_filtered = None
         if "msa" in ts_df.columns and "msa" in filtered.columns:
             ts_filtered = ts_df[ts_df["msa"].isin(filtered["msa"].tolist())]
@@ -1069,16 +1087,31 @@ def main():
                     ts_df_filt["quarter_idx"] = 0
             ts_df_filt = ts_df_filt.sort_values("quarter_idx")
 
-            valid_cities = [c for c in sel_cities if c in ts_df_filt["msa"].values]
+            # Detect the MSA column name (could be 'msa', 'MSA', 'market', etc.)
+            msa_col = next((c for c in ts_df_filt.columns if c.lower() in ("msa", "market", "city")), None)
+            if msa_col and msa_col != "msa":
+                ts_df_filt = ts_df_filt.rename(columns={msa_col: "msa"})
+
+            if "msa" in ts_df_filt.columns:
+                valid_cities = [c for c in sel_cities if c in ts_df_filt["msa"].values]
+            else:
+                valid_cities = []
+                st.warning("Could not find MSA column in time series data.")
+
+            if "combined" not in ts_df_filt.columns and "macro_score" in ts_df_filt.columns and "asset_score" in ts_df_filt.columns:
+                ts_df_filt["combined"] = (ts_df_filt["macro_score"] + ts_df_filt["asset_score"]) / 2
+
             fig_traj = make_trajectory(ts_df_filt, valid_cities)
             st.plotly_chart(fig_traj, use_container_width=True)
 
             st.markdown('<div class="section-title">Combined Score by Quarter</div>', unsafe_allow_html=True)
-            ts_sel = ts_df_filt[ts_df_filt["msa"].isin(valid_cities)][["msa","quarter","quarter_idx","combined"]]
-            q_sorted = ts_df_filt[["quarter","quarter_idx"]].drop_duplicates().sort_values("quarter_idx")["quarter"].tolist()
-            ts_pivot = ts_sel.pivot_table(index="msa", columns="quarter", values="combined").round(2)
-            ts_pivot = ts_pivot.reindex(columns=[c for c in q_sorted if c in ts_pivot.columns])
-            st.dataframe(ts_pivot, use_container_width=True)
+            needed_cols = [c for c in ["msa","quarter","quarter_idx","combined"] if c in ts_df_filt.columns]
+            ts_sel = ts_df_filt[ts_df_filt["msa"].isin(valid_cities)][needed_cols] if "msa" in ts_df_filt.columns else pd.DataFrame()
+            if not ts_sel.empty and "combined" in ts_sel.columns and "quarter" in ts_sel.columns:
+                q_sorted = ts_df_filt[["quarter","quarter_idx"]].drop_duplicates().sort_values("quarter_idx")["quarter"].tolist() if "quarter_idx" in ts_df_filt.columns else ts_df_filt["quarter"].unique().tolist()
+                ts_pivot = ts_sel.pivot_table(index="msa", columns="quarter", values="combined").round(2)
+                ts_pivot = ts_pivot.reindex(columns=[c for c in q_sorted if c in ts_pivot.columns])
+                st.dataframe(ts_pivot, use_container_width=True)
         else:
             st.info("Select at least one market above.")
 
